@@ -43,15 +43,18 @@ inline int to_upper(const char ch) {
 inline int is_digit(const char ch) {
     return std::isdigit(static_cast<unsigned char>(ch));
 }
+inline int is_ws(const char ch) {
+    return std::isspace(static_cast<unsigned char>(ch));
+}
 inline int natcmp(const std::string &ls, const std::string &rs) {
 
-    for (int li = 0, ri = 0;; ++li, ++ri) {
+    for (std::string::size_type li = 0, ri = 0;; ++li, ++ri) {
 
         // Skip whitespace
-        while (isspace(ls[li]) != 0) {
+        while (is_ws(ls[li]) != 0) {
             ++li;
         }
-        while (isspace(rs[ri]) != 0) {
+        while (is_ws(rs[ri]) != 0) {
             ++ri;
         }
 
@@ -121,8 +124,8 @@ inline int natcmp(const std::string &ls, const std::string &rs) {
         }
 
         // Always fold case before comparing
-        const int lc = to_upper(static_cast<unsigned char>(ls[li]));
-        const int rc = to_upper(static_cast<unsigned char>(rs[ri]));
+        const int lc = to_upper(ls[li]);
+        const int rc = to_upper(rs[ri]);
         if (lc < rc) {
             return -1;
         }

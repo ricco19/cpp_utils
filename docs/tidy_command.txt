@@ -1,0 +1,1 @@
+clang-tidy -checks=*,-fuchsia-default-arguments,-hicpp-signed-bitwise,-llvm-header-guard -header-filter=.* -p . ../src/tests.cpp

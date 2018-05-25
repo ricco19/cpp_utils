@@ -35,16 +35,28 @@ add_executable(${PROJECT_NAME}
     src/tests.cpp
 )
 
+# If available, add sanitizers to our debug build
+if (NOT GENERATOR_IS_MULTI_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(SANITIZE_ADDRESS On)
+    set(SANITIZE_UNDEFINED On)
+    set(ENV{ASAN_OPTIONS}, "detect_leaks=1")
+    find_package(Sanitizers)
+    add_sanitizers(${PROJECT_NAME})
+endif()
+
 # Includes
 target_include_directories(${PROJECT_NAME}
     PRIVATE
         ${PROJECT_SOURCE_DIR}/src
+        $<$<BOOL:${WIN32}>:C:/mingw64/include>
 )
 
 # Link external librarys
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
+        benchmark
         $<$<BOOL:${WIN32}>:shlwapi>
+        $<$<BOOL:${UNIX}>:pthread>
 )
 
 # C++17

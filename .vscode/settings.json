@@ -42,6 +42,10 @@
         "bitset": "cpp",
         "atomic": "cpp",
         "memory": "cpp",
-        "memory_resource": "cpp"
+        "memory_resource": "cpp",
+        "chrono": "cpp",
+        "ctime": "cpp",
+        "numeric": "cpp",
+        "ratio": "cpp"
     }
 }

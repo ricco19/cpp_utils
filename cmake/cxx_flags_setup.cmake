@@ -27,9 +27,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE
             "-D_GLIBCXX_ASSERTIONS"
             "-fno-omit-frame-pointer"
         >
-        # Always use O3 except for minimum size
+        # Always use O2 except for minimum size
         $<$<NOT:$<CONFIG:MinSizeRel>>:
-            "-O3"
+            "-O2"
         >
         # Almost all warnings as errors
         "-Werror"
