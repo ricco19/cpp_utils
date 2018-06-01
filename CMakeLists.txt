@@ -15,6 +15,12 @@ set(META_NAME_VERSION "${META_PROJECT_NAME} v${META_VERSION} (${META_VERSION_REV
 set(META_CMAKE_INIT_SHA "${GIT_REV}")
 set(CMAKE_VERBOSE_MAKEFILE 0)
 
+# CMake module paths
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
+
+# Output paths
+set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
+
 # Sets default build to RelWithDebInfo on single generators
 if (NOT GENERATOR_IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message("   -> Setting build type to 'RelWithDebInfo' as none was specified.")
@@ -23,12 +29,6 @@ if (NOT GENERATOR_IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGU
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
         "MinSizeRel" "RelWithDebInfo")
 endif()
-
-# CMake module paths
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
-
-# Output paths
-set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
 
 # Create our executable(s)
 add_executable(${PROJECT_NAME}
@@ -65,6 +65,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD_REQUIRED OFF
     CXX_EXTENSIONS OFF
 )
+
+# Disable min() and max() macros on windows that conflict with the standard
+target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
 
 # Load CXX Flags module
 include(cxx_flags_setup)

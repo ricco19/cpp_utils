@@ -2,26 +2,25 @@
 #define QUICKRNG_H
 
 #include <random>
+#include <string>
+#include <string_view>
 #ifdef __MINGW32__
-#include <chrono>
+#include "timer.h"
 #endif
 
-namespace quickrng {
+namespace utils {
 
 inline char rng_alnum() {
-    static constexpr char chrs[] =
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    static constexpr auto numchars = sizeof(chrs) - 2;
+    static constexpr std::string_view chrs{
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"};
+    static constexpr auto numchars = chrs.size() - 1;
 #ifdef __MINGW32__
-    using ms_t = std::chrono::duration<uint_fast32_t, std::milli>;
-    using clk_t = std::chrono::high_resolution_clock;
-    thread_local static std::mt19937 rng{
-        ms_t(clk_t::now().time_since_epoch().count()).count()};
+    thread_local static std::mt19937 rng{the_time()};
 #else
     thread_local static std::mt19937 rng{std::random_device{}()};
 #endif
     thread_local static std::uniform_int_distribution<int> uid{0, numchars};
-    return chrs[uid(rng)];
+    return chrs.at(static_cast<std::string_view::size_type>(uid(rng)));
 }
 
 inline int rng_int(const int range_low = std::numeric_limits<int>::min(),
@@ -30,10 +29,7 @@ inline int rng_int(const int range_low = std::numeric_limits<int>::min(),
         return 0;
     }
 #ifdef __MINGW32__
-    using ms_t = std::chrono::duration<uint_fast32_t, std::milli>;
-    using clk_t = std::chrono::high_resolution_clock;
-    thread_local static std::mt19937 rng{
-        ms_t(clk_t::now().time_since_epoch().count()).count()};
+    thread_local static std::mt19937 rng{the_time()};
 #else
     thread_local static std::mt19937 rng{std::random_device{}()};
 #endif
@@ -52,5 +48,5 @@ inline std::string rng_str(std::string::size_type len = 16) {
     return retstr;
 }
 
-} // namespace quickrng
+} // namespace utils
 #endif

@@ -35,7 +35,7 @@
 #endif
 #include <string>
 
-namespace natcmp {
+namespace utils {
 #ifndef _WIN32
 inline int to_upper(const char ch) {
     return std::toupper(static_cast<unsigned char>(ch));
@@ -138,12 +138,12 @@ inline int natcmp(const std::string &ls, const std::string &rs) {
 }
 #else
 inline int natcmp(const std::string &ls, const std::string &rs) {
-    return StrCmpLogicalW(&utf8conv::widen(ls)[0], &utf8conv::widen(rs)[0]);
+    return StrCmpLogicalW(&widen(ls)[0], &widen(rs)[0]);
 }
 inline int natcmp(const std::wstring &ls, const std::wstring &rs) {
     return StrCmpLogicalW(&ls[0], &rs[0]);
 }
 #endif
-} // namespace natcmp
+} // namespace utils
 
 #endif

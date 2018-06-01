@@ -4,7 +4,7 @@
 #include <string>
 #include <windows.h>
 
-namespace utf8conv {
+namespace utils {
 
 // wstring -> string (narrow)
 inline std::string narrow(const std::wstring &ws) {
@@ -22,7 +22,7 @@ inline std::string narrow(const std::wstring &ws) {
         return retstr;
     }
     // reserve and write to a buffer
-    retstr.reserve(sz);
+    retstr.reserve(static_cast<std::string::size_type>(sz));
     WideCharToMultiByte(CP_UTF8, 0, &ws[0], len, &retstr[0], sz, nullptr,
                         nullptr);
     return retstr;
@@ -42,7 +42,7 @@ inline std::string narrow(const wchar_t *ws) {
         return retstr;
     }
     // reserve and write to a buffer
-    retstr.reserve(sz);
+    retstr.reserve(static_cast<std::string::size_type>(sz));
     WideCharToMultiByte(CP_UTF8, 0, ws, len, &retstr[0], sz, nullptr, nullptr);
     return retstr;
 }
@@ -62,7 +62,7 @@ inline std::wstring widen(const std::string &s) {
         return retstr;
     }
     // reserve and write to a buffer
-    retstr.reserve(sz);
+    retstr.reserve(static_cast<std::wstring::size_type>(sz));
     MultiByteToWideChar(CP_UTF8, 0, &s[0], len, &retstr[0], sz);
     return retstr;
 }
@@ -80,11 +80,11 @@ inline std::wstring widen(const char *s) {
         return retstr;
     }
     // reserve and write to a buffer
-    retstr.reserve(sz);
+    retstr.reserve(static_cast<std::wstring::size_type>(sz));
     MultiByteToWideChar(CP_UTF8, 0, s, len, &retstr[0], sz);
     return retstr;
 }
 
-} // namespace utf8conv
+} // namespace utils
 
 #endif
