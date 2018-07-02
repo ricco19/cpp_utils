@@ -1,103 +1,75 @@
-// #include "natcmp.h"
 // #include "benchmark/benchmark.h"
-// #include "quickrng.h"
-// #include <algorithm>
-// #include <cstring>
-// #include <iostream>
-// #include <string>
-// #include <vector>
+#include "utils/natcmp.h"
+#include "utils/quickrng.h"
+#include "utils/system.h"
+#include "utils/timer.h"
+#include <iostream>
 
-// static void BM_strcr(benchmark::State &s) {
+// static void BM_freefunc(benchmark::State &s) {
 //     for (auto _ : s) {
-//         std::string str{};
-//         str.reserve(s.range(0));
-//         for (int i = 0; i < s.range(0); ++i)
-//             str.push_back('a');
+//         utils::list_t list = utils::file_to_list("../docs/random_list.txt");
+//         __asm volatile("" : : : "memory");
+//         utils::list_shuffle(list);
+//         __asm volatile("" : : : "memory");
+//         utils::list_sort_naturally(list);
 //         __asm volatile("" : : : "memory");
 //     }
-//     s.SetLabel(std::to_string(s.range(0)));
 // }
 
-// static void BM_rngstr(benchmark::State &s) {
+// static void BM_class(benchmark::State &s) {
 //     for (auto _ : s) {
-//         benchmark::DoNotOptimize(quickrng::rng_str(s.range(0)));
+//         utils::clist list;
+//         list.from_file("../docs/random_list.txt");
+//         __asm volatile("" : : : "memory");
+//         list.shuffle();
+//         __asm volatile("" : : : "memory");
+//         list.sort_naturally();
+//         __asm volatile("" : : : "memory");
 //     }
-//     s.SetLabel(std::to_string(s.range(0)));
 // }
 
-// static void BM_rngstr2(benchmark::State &s) {
+// static void BM_freefunc_oo(benchmark::State &s) {
+//     utils::list_t list = utils::file_to_list("../docs/random_list.txt");
 //     for (auto _ : s) {
-//         benchmark::DoNotOptimize(quickrng::rng_str2(s.range(0)));
+//         utils::list_shuffle(list);
+//         __asm volatile("" : : : "memory");
+//         utils::list_sort_naturally(list);
+//         __asm volatile("" : : : "memory");
 //     }
-//     s.SetLabel(std::to_string(s.range(0)));
-// }
-// static void BM_rngstr3(benchmark::State &s) {
-//     for (auto _ : s) {
-//         benchmark::DoNotOptimize(quickrng::rng_str3(s.range(0)));
-//     }
-//     s.SetLabel(std::to_string(s.range(0)));
 // }
 
-// BENCHMARK(BM_rngstr)->RangeMultiplier(4)->Range(4,
-// 4<<10)->ReportAggregatesOnly(true);
-// BENCHMARK(BM_rngstr2)->RangeMultiplier(4)->Range(4,
-// 4<<10)->ReportAggregatesOnly(true);
-// BENCHMARK(BM_rngstr3)->RangeMultiplier(4)->Range(4,
-// 4<<10)->ReportAggregatesOnly(true);
-// BENCHMARK(BM_strcr)->RangeMultiplier(4)->Range(4,
-// 4<<10)->ReportAggregatesOnly(true);
+// static void BM_class_oo(benchmark::State &s) {
+//     utils::clist list;
+//     list.from_file("../docs/random_list.txt");
+//     for (auto _ : s) {
+//         list.shuffle();
+//         __asm volatile("" : : : "memory");
+//         list.sort_naturally();
+//         __asm volatile("" : : : "memory");
+//     }
+// }
+
+// BENCHMARK(BM_freefunc)->ReportAggregatesOnly(true);
+// BENCHMARK(BM_freefunc_oo)->ReportAggregatesOnly(true);
+// BENCHMARK(BM_class)->ReportAggregatesOnly(true);
+// BENCHMARK(BM_class_oo)->ReportAggregatesOnly(true);
 
 // BENCHMARK_MAIN();
 
-#include "natcmp.h"
-#include "quickrng.h"
-#include <algorithm>
-#include <chrono>
-#include <iostream>
-#include <regex>
-#include <string>
-#include <vector>
+int main(int argc, char *argv[]) {
 
-class stopwatch {
-    using timepoint_t = std::chrono::high_resolution_clock::time_point;
-    using ns_t = std::chrono::nanoseconds;
+    if (argc <= 1) {
+        std::cout << "Nothing to do!\n";
+        return 0;
+    }
 
-  private:
-    timepoint_t start_ = timepoint_t();
-    timepoint_t stop_ = timepoint_t();
-    ns_t delta_ = std::chrono::nanoseconds(0);
-    bool was_stopped_ = false;
+    utils::print_file_info(argv[1]);
 
-  public:
-    inline void start() noexcept {
-        was_stopped_ = false;
-        start_ = std::chrono::high_resolution_clock::now();
-    }
-    inline void stop() noexcept {
-        stop_ = std::chrono::high_resolution_clock::now();
-        was_stopped_ = true;
-        delta_ = std::chrono::duration_cast<ns_t>(stop_ - start_);
-    }
-    inline ns_t delta() const noexcept {
-        if (!was_stopped_) {
-            return std::chrono::nanoseconds(0);
-        }
-        return delta_;
-    }
-};
+    // utils::list_t list = utils::file_to_list(argv[1]);
+    // utils::list_shuffle(list);
+    // utils::list_sort_naturally(list);
 
-int main() {
-    for (int loops = 0; loops <= 1024; ++loops) {
-        std::vector<std::string> list;
-        const int sz = utils::rng_int(128, 2048);
-        list.reserve(sz);
-        for (int i = 0; i < sz; ++i)
-            list.push_back(utils::rng_str(utils::rng_int(16, 1024)));
-        std::sort(list.begin(), list.end(),
-                  [](const std::string &lhs, const std::string &rhs) {
-                      return utils::natcmp(lhs, rhs) < 0;
-                  });
-    }
+    // utils::print_list(list);
 
     return 0;
 }

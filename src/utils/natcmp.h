@@ -28,7 +28,7 @@
 #define NATCMP_H
 
 #ifdef _WIN32
-#include "utf8conv_win32.h"
+#include "utils/utf8conv_win32.h"
 #include <shlwapi.h>
 #else
 #include <cctype>

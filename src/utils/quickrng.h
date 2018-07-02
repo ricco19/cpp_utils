@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 #ifdef __MINGW32__
-#include "timer.h"
+#include "utils/timer.h"
 #endif
 
 namespace utils {
