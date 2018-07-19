@@ -48,6 +48,20 @@
         "numeric": "cpp",
         "ratio": "cpp",
         "random": "cpp",
-        "list": "cpp"
+        "list": "cpp",
+        "csignal": "cpp",
+        "cstdarg": "cpp",
+        "strstream": "cpp",
+        "codecvt": "cpp",
+        "complex": "cpp",
+        "condition_variable": "cpp",
+        "functional": "cpp",
+        "future": "cpp",
+        "iomanip": "cpp",
+        "mutex": "cpp",
+        "thread": "cpp",
+        "cinttypes": "cpp",
+        "typeindex": "cpp",
+        "*.ipp": "cpp"
     }
 }

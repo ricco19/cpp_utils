@@ -3,6 +3,7 @@
 
 #include <string>
 #include <windows.h>
+#include <iostream>
 
 namespace utils {
 
@@ -28,21 +29,20 @@ inline std::string narrow(const std::wstring &ws) {
     return retstr;
 }
 inline std::string narrow(const wchar_t *ws) {
-    std::string retstr;
     // cast length to int, if < 1 return an empty string
     const auto len = static_cast<int>(wcslen(ws));
     if (len <= 0) {
-        return retstr;
+        return std::string{};
     }
     // dry run to retrieve the destination buffer size requirement
     // again just return an empty string if < 1
     const auto sz =
         WideCharToMultiByte(CP_UTF8, 0, ws, len, nullptr, 0, nullptr, nullptr);
     if (sz <= 0) {
-        return retstr;
+        return std::string{};
     }
     // reserve and write to a buffer
-    retstr.reserve(static_cast<std::string::size_type>(sz));
+    std::string retstr(static_cast<std::string::size_type>(sz), 0);
     WideCharToMultiByte(CP_UTF8, 0, ws, len, &retstr[0], sz, nullptr, nullptr);
     return retstr;
 }

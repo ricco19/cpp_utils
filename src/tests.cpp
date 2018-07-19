@@ -1,60 +1,21 @@
-// #include "benchmark/benchmark.h"
+//#include "benchmark/benchmark.h"
+#include "image/tiff.h"
 #include "utils/natcmp.h"
 #include "utils/quickrng.h"
 #include "utils/system.h"
 #include "utils/timer.h"
 #include <iostream>
 
-// static void BM_freefunc(benchmark::State &s) {
+// static void BM_checkend(benchmark::State &s) {
 //     for (auto _ : s) {
-//         utils::list_t list = utils::file_to_list("../docs/random_list.txt");
-//         __asm volatile("" : : : "memory");
-//         utils::list_shuffle(list);
-//         __asm volatile("" : : : "memory");
-//         utils::list_sort_naturally(list);
-//         __asm volatile("" : : : "memory");
+//         benchmark::DoNotOptimize(utils::is_big_endian());
 //     }
 // }
 
-// static void BM_class(benchmark::State &s) {
-//     for (auto _ : s) {
-//         utils::clist list;
-//         list.from_file("../docs/random_list.txt");
-//         __asm volatile("" : : : "memory");
-//         list.shuffle();
-//         __asm volatile("" : : : "memory");
-//         list.sort_naturally();
-//         __asm volatile("" : : : "memory");
-//     }
-// }
-
-// static void BM_freefunc_oo(benchmark::State &s) {
-//     utils::list_t list = utils::file_to_list("../docs/random_list.txt");
-//     for (auto _ : s) {
-//         utils::list_shuffle(list);
-//         __asm volatile("" : : : "memory");
-//         utils::list_sort_naturally(list);
-//         __asm volatile("" : : : "memory");
-//     }
-// }
-
-// static void BM_class_oo(benchmark::State &s) {
-//     utils::clist list;
-//     list.from_file("../docs/random_list.txt");
-//     for (auto _ : s) {
-//         list.shuffle();
-//         __asm volatile("" : : : "memory");
-//         list.sort_naturally();
-//         __asm volatile("" : : : "memory");
-//     }
-// }
-
-// BENCHMARK(BM_freefunc)->ReportAggregatesOnly(true);
-// BENCHMARK(BM_freefunc_oo)->ReportAggregatesOnly(true);
-// BENCHMARK(BM_class)->ReportAggregatesOnly(true);
-// BENCHMARK(BM_class_oo)->ReportAggregatesOnly(true);
+// BENCHMARK(BM_checkend)->ReportAggregatesOnly(true);
 
 // BENCHMARK_MAIN();
+
 
 int main(int argc, char *argv[]) {
 
@@ -64,6 +25,14 @@ int main(int argc, char *argv[]) {
     }
 
     utils::print_file_info(argv[1]);
+
+    image::tiff_open tif(argv[1]);
+    if (tif.is_tiff()) {
+        std::cout << " -> Loaded TIFF!" << '\n';
+    } else {
+        std::cout << " -> Not a TIFF." << '\n';
+    }
+
 
     // utils::list_t list = utils::file_to_list(argv[1]);
     // utils::list_shuffle(list);

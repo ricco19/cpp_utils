@@ -11,6 +11,7 @@
 #include <vector>
 
 #ifdef _WIN32
+#include "utils/utf8conv_win32.h"
 #include <windows.h>
 #else
 #include <cstring>
@@ -22,7 +23,7 @@ namespace utils {
 using list_t = std::vector<std::string>;
 static constexpr int MAX_FILE_READ_SZ = 10'485'760;
 enum : int { FINFO_NOEXIST, FINFO_IS_FILE, FINFO_IS_DIR, FINFO_IS_LINK };
-
+enum : int { DL_SHOW_HIDDEN = 0x01, DL_RECURSE = 0x02 };
 namespace internal {
 inline bool is_crlf(const std::string &s) {
     const auto pos = s.find('\n');
@@ -35,22 +36,54 @@ inline bool has_bom(const std::string &s) {
 }
 } // namespace internal
 
+inline std::vector<uint8_t>
+file_binread(const char *filename, const int max_size = MAX_FILE_READ_SZ) {
+    // Try to open the file
+    constexpr std::ios_base::openmode open_mode =
+        std::ios::in | std::ios::binary | std::ios::ate;
+    std::ifstream fst(filename, open_mode);
+    if (!fst.is_open()) {
+        std::cerr << "Cannot open file for input: " << filename
+                  << "\n -> Error opening file.\n";
+        return std::vector<uint8_t>{};
+    }
+    // Get size of the file, ignore <= 0 > max_size
+    const auto filesize = static_cast<int64_t>(fst.tellg());
+    if (filesize <= 0 || filesize > max_size) {
+        std::cerr << "Cannot open file for input: " << filename
+                  << "\n -> Invalid file size (" << filesize
+                  << ")! Max = " << max_size << '\n';
+        return std::vector<uint8_t>{};
+    }
+    // Read entire file into a string buffer
+    fst.seekg(std::ios::beg);
+    std::vector<uint8_t> buf(static_cast<unsigned>(filesize));
+    fst.read(reinterpret_cast<char*>(&buf[0]), filesize);
+    fst.close();
+    return buf;
+}
+
 inline std::string file_to_string(const char *filename) {
     // Try to open the file
     constexpr std::ios_base::openmode open_mode =
         std::ios::in | std::ios::binary | std::ios::ate;
     std::ifstream fst(filename, open_mode);
     if (!fst.is_open()) {
+        std::cerr << "Cannot open file for input: " << filename
+                  << "\n -> Error opening file.\n";
         return std::string{};
     }
     // Get size of the file, ignore <= 0 > MAX_FILE_READ_SZ
     const auto filesize = static_cast<int64_t>(fst.tellg());
     if (filesize <= 0 || filesize > MAX_FILE_READ_SZ) {
+        std::cerr << "Cannot open file for input: " << filename
+                  << "\n -> Invalid file size (" << filesize
+                  << ")! Max = " << MAX_FILE_READ_SZ << '\n';
         return std::string{};
     }
     // Read entire file into a string buffer
     fst.seekg(std::ios::beg);
-    std::string buf(static_cast<unsigned int>(filesize), 0);
+    std::string buf(static_cast<unsigned>(filesize), 0);
     fst.read(&buf[0], filesize);
     fst.close();
     return buf;
@@ -133,7 +166,7 @@ inline void list_print(const list_t &list) {
 }
 
 #ifdef _WIN32
-int get_file_info(const char *path) noexcept {
+inline int get_file_info(const char *path) noexcept {
     // Check for null/empty
     if (path == nullptr) {
         return FINFO_NOEXIST;
@@ -202,7 +235,151 @@ inline void print_file_info(const char *path) {
         break;
     }
 }
+/*
+///////////////////////////////
+// Windows directory listing //
+///////////////////////////////
+#ifdef _WIN32
 
+// Directory handle paired with WIN32_FIND_DATA
+struct dirhand_t {
+    HANDLE handle;
+    WIN32_FIND_DATAW find_data;
+};
+
+// Files that begin with . arent technically hidden on windows
+inline bool is_hidden(const WIN32_FIND_DATAW &fdata) {
+    if (fdata.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) {
+        return true;
+    }
+    return (fdata.cFileName[0] == L'.') ? true : false;
+}
+
+// A few cases we always hide: . and ..
+// $RECYCLE.BIN and System Volume Information
+inline bool is_forcehidden(const wchar_t *wstr) {
+    switch (wcslen(wstr)) {
+    case 1: // . ?
+        if (wstr[0] == L'.') {
+            return true;
+        }
+        break;
+    case 2: // .. ?
+        if ((wstr[1] == L'.') && (wstr[0] == L'.')) {
+            return true;
+        }
+        break;
+    case 12: // $RECYCLE.BIN?
+        if (wcsncmp(&wstr[0], L"$RECYCLE.BIN", 12) == 0) {
+            return true;
+        }
+        break;
+    case 25: // System Volume Information?
+        if (wcsncmp(&wstr[0], L"System Volume Information", 25) == 0) {
+            return true;
+        }
+        break;
+    default:
+        return false;
+    }
+    return false;
+}
+
+// Converts path to a string and removes/replaces invalid characters
+inline std::string fix_path(const char *in_path) {
+    std::string path{in_path};
+    while (!path.empty()) {
+        switch (path.back()) {
+        case '\\':
+        case '/':
+        case '*':
+        case '.':
+        case '~':
+        case '#':
+        case '%':
+        case '&':
+        case '{':
+        case '}':
+        case ':':
+        case '<':
+        case '>':
+        case '?':
+        case '+':
+        case '|':
+        case '\"':
+            path.pop_back();
+            break;
+        default:
+            // Use backslashes on windows
+            std::replace(path.begin(), path.end(), '/', '\\');
+            return path;
+        }
+    }
+    return path;
+}
+
+// Trys to get a directory handle/find data
+inline dirhand_t get_dir_handle(const char *path) {
+    // Initalize return struct
+    dirhand_t ret = {INVALID_HANDLE_VALUE,
+                     {0, {0, 0}, {0, 0}, {0, 0}, 0, 0, 0, 0, L"", L""}};
+    // To start, try to properly format the string
+    std::string fixed_path{fix_path(path)};
+    // Make sure it's a directory
+    if (get_file_info(fixed_path.c_str()) != FINFO_IS_DIR) {
+        std::cerr << fixed_path << " is not a directory!\n";
+        return ret;
+    }
+    // Append wildcard to path
+    fixed_path.append("\\*");
+    // Try to get handle
+    ret.handle = FindFirstFileExW(&widen(fixed_path)[0], FindExInfoBasic,
+                                  &ret.find_data, FindExSearchNameMatch,
+                                  nullptr, FIND_FIRST_EX_LARGE_FETCH);
+    return ret;
+}
+
+// Get's directory contents and returns a list of strings
+inline list_t list_dir(const char *path, const int opt = 0) {
+    // Check for NULL
+    list_t list{};
+    if (path == nullptr) {
+        std::cerr << "NULL path\n";
+        return list;
+    }
+    // Try to get directory handle
+    dirhand_t dir = get_dir_handle(path);
+    if (dir.handle == INVALID_HANDLE_VALUE) {
+        std::cerr << "Cannot get directory handle!\n";
+        return list;
+    }
+    // Set some bools so we don't every loop
+    const bool show_hidden = opt & DL_SHOW_HIDDEN;
+    const bool recurse = opt & DL_RECURSE;
+    // Loop over each entry
+    while (FindNextFileW(dir.handle, &dir.find_data) != 0) {
+        // Ignore "bad" entries
+        if (is_forcehidden(dir.find_data.cFileName)) {
+            continue;
+        }
+        // Ignore hidden entries - optional
+        if (!show_hidden && is_hidden(dir.find_data)) {
+            continue;
+        }
+        // Directory: ignore or recurse
+        if (dir.find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            if (recurse) {
+                // recurse here
+            }
+            continue;
+        }
+
+        list.emplace_back(narrow(dir.find_data.cFileName));
+    }
+    return list;
+}
+#endif
+*/
 } // namespace utils
 
 #endif
