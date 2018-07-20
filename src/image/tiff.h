@@ -28,30 +28,42 @@ class tiff_open {
 
   private:
     std::vector<uint8_t> buf_{};
-    const bool is_tiff_ = false;
+    bool is_tiff_ = false;
     bool is_big_endian_ = false;
+    int ifd_offset_ = 0;
+    bool read_header();
 
-    bool read_header() {
-        // Don't even attempt tiny files
-        if (buf_.size() <= 12) {
-            return false;
-        }
-        const int val = reinterpret_cast<const int *>(&buf_[0])[0];
-        switch (val) {
-        case 0x002A4949:
-            is_big_endian_ = false;
-            break;
-        case 0x002A4D4D:
-            is_big_endian_ = true;
-            break;
-        default:
-            buf_.clear();
-            std::cerr << "Cannot read TIFF file.\n -> Invalid header!\n";
-            return false;
-        }
-        return true;
-    }
 };
+
+bool tiff_open::read_header() {
+    // Don't even attempt tiny files
+    if (buf_.size() <= 12) {
+        return false;
+    }
+    // int pointer at offset 0 of buffer
+    // 4 bytes, TIFF header
+    switch (reinterpret_cast<const int *>(&buf_[0])[0]) {
+    case 0x002A4949:
+        is_big_endian_ = false;
+        break;
+    case 0x2A004D4D:
+        is_big_endian_ = true;
+        break;
+    default:
+        buf_.clear();
+        std::cerr << "Cannot read TIFF file.\n -> Invalid header!\n";
+        return false;
+    }
+    // int pointer at offset 4 of buffer
+    // 4 bytes, offset
+    ifd_offset_ = reinterpret_cast<const int *>(&buf_[4])[0];
+    if (ifd_offset_ < 8) {
+        std::cerr << "Cannot read TIFF file.\n -> Invalid IFD offset!\n";
+        return false;
+    }
+    std::cout << "ifd offset = " << ifd_offset_ << '\n';
+    return true;
+}
 
 // struct subfiletype {
 //     const int id = 0x00FE;

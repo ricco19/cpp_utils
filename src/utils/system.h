@@ -20,6 +20,7 @@
 
 namespace utils {
 
+using bytearr_t = std::vector<uint8_t>;
 using list_t = std::vector<std::string>;
 static constexpr int MAX_FILE_READ_SZ = 10'485'760;
 enum : int { FINFO_NOEXIST, FINFO_IS_FILE, FINFO_IS_DIR, FINFO_IS_LINK };
@@ -36,8 +37,8 @@ inline bool has_bom(const std::string &s) {
 }
 } // namespace internal
 
-inline std::vector<uint8_t>
-file_binread(const char *filename, const int max_size = MAX_FILE_READ_SZ) {
+inline bytearr_t file_binread(const char *filename,
+                              const int max_size = MAX_FILE_READ_SZ) {
     // Try to open the file
     constexpr std::ios_base::openmode open_mode =
         std::ios::in | std::ios::binary | std::ios::ate;
@@ -45,7 +46,7 @@ file_binread(const char *filename, const int max_size = MAX_FILE_READ_SZ) {
     if (!fst.is_open()) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Error opening file.\n";
-        return std::vector<uint8_t>{};
+        return bytearr_t{};
     }
     // Get size of the file, ignore <= 0 > max_size
     const auto filesize = static_cast<int64_t>(fst.tellg());
@@ -53,14 +54,189 @@ file_binread(const char *filename, const int max_size = MAX_FILE_READ_SZ) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Invalid file size (" << filesize
                   << ")! Max = " << max_size << '\n';
-        return std::vector<uint8_t>{};
+        return bytearr_t{};
     }
     // Read entire file into a string buffer
     fst.seekg(std::ios::beg);
-    std::vector<uint8_t> buf(static_cast<unsigned>(filesize));
-    fst.read(reinterpret_cast<char*>(&buf[0]), filesize);
+    bytearr_t buf(static_cast<unsigned>(filesize));
+    fst.read(reinterpret_cast<char *>(&buf[0]), filesize);
     fst.close();
     return buf;
+}
+
+class binread {
+  public:
+    binread() = delete;
+    binread(const char *file)
+        : buf_{file_binread(file)} {}
+    bytearr_t buf_;
+    size_t size() const { return buf_.size(); }
+    uint8_t read_8u(const unsigned offset) const;
+    uint16_t read_16u(const unsigned offset, const bool bswap) const;
+    uint32_t read_32u(const unsigned offset, const bool bswap) const;
+    uint64_t read_64u(const unsigned offset, const bool bswap) const;
+    int8_t read_8s(const unsigned offset) const;
+    int16_t read_16s(const unsigned offset, const bool bswap) const;
+    int32_t read_32s(const unsigned offset, const bool bswap) const;
+    int64_t read_64s(const unsigned offset, const bool bswap) const;
+    std::string read_str(const unsigned offset, const unsigned len) const;
+
+  private:
+};
+
+template <class IntType>
+IntType brtest(const std::vector<uint8_t> &buf, const unsigned offset,
+               const bool bswap = false) {
+    const auto sz = sizeof(IntType);
+    if (offset + sz > buf.size()) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    const auto val = *reinterpret_cast<const IntType *>(&buf[offset]);
+    if (bswap) {
+        switch (sz) {
+       /* case 8:
+            return (((val & 0xFF00000000000000) >> 56) |
+                    ((val & 0x00FF000000000000) >> 40) |
+                    ((val & 0x0000FF0000000000) >> 24) |
+                    ((val & 0x000000FF00000000) >> 8) |
+                    ((val & 0x00000000FF000000) << 8) |
+                    ((val & 0x0000000000FF0000) << 24) |
+                    ((val & 0x000000000000FF00) << 40) |
+                    ((val & 0x00000000000000FF) << 56));*/
+        case 4:
+            return (((val & 0xFF000000) >> 24) | ((val & 0x00FF0000) >> 8) |
+                    ((val & 0x0000FF00) << 8) | ((val & 0x000000FF) << 24));
+        case 2:
+            return static_cast<IntType>(((val & 0x00FF) >> 8) | (val << 8));
+        case 1:
+        default:
+            break;
+        }
+    }
+    return val;
+}
+// binread<typename>(std::vector<uint8_t>, offset)
+
+uint8_t binread::read_8u(const unsigned offset) const {
+    if (offset > buf_.size() - sizeof(uint8_t)) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    return buf_[offset];
+}
+
+int8_t binread::read_8s(const unsigned offset) const {
+    if (offset > buf_.size() - sizeof(int8_t)) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    return buf_[offset];
+}
+
+uint16_t binread::read_16u(const unsigned offset,
+                           const bool bswap = false) const {
+    if (offset > buf_.size() - sizeof(uint16_t)) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    const auto val = reinterpret_cast<const uint16_t *>(&buf_[offset])[0];
+    if (bswap) {
+        return static_cast<uint16_t>(((val & 0x00FF) >> 8) | (val << 8));
+    }
+    return val;
+}
+
+int16_t binread::read_16s(const unsigned offset,
+                          const bool bswap = false) const {
+    if (offset > buf_.size() - sizeof(int16_t)) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    const auto val = reinterpret_cast<const int16_t *>(&buf_[offset])[0];
+    if (bswap) {
+        return static_cast<int16_t>(((val & 0x00FF) >> 8) | (val << 8));
+    }
+    return val;
+}
+
+uint32_t binread::read_32u(const unsigned offset,
+                           const bool bswap = false) const {
+    if (offset > buf_.size() - sizeof(uint32_t)) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    const auto val = reinterpret_cast<const uint32_t *>(&buf_[offset])[0];
+    if (bswap) {
+        return (((val & 0xFF000000) >> 24) | ((val & 0x00FF0000) >> 8) |
+                ((val & 0x0000FF00) << 8) | ((val & 0x000000FF) << 24));
+    }
+    return val;
+}
+
+int32_t binread::read_32s(const unsigned offset,
+                          const bool bswap = false) const {
+    if (offset > buf_.size() - sizeof(int32_t)) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    const auto val = reinterpret_cast<const int32_t *>(&buf_[offset])[0];
+    if (bswap) {
+        return (((val & 0xFF000000) >> 24) | ((val & 0x00FF0000) >> 8) |
+                ((val & 0x0000FF00) << 8) | ((val & 0x000000FF) << 24));
+    }
+    return val;
+}
+
+uint64_t binread::read_64u(const unsigned offset,
+                           const bool bswap = false) const {
+    if (offset > buf_.size() - sizeof(uint64_t)) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    const auto val = reinterpret_cast<const uint64_t *>(&buf_[offset])[0];
+    if (bswap) {
+        return (((val & 0xFF00000000000000) >> 56) |
+                ((val & 0x00FF000000000000) >> 40) |
+                ((val & 0x0000FF0000000000) >> 24) |
+                ((val & 0x000000FF00000000) >> 8) |
+                ((val & 0x00000000FF000000) << 8) |
+                ((val & 0x0000000000FF0000) << 24) |
+                ((val & 0x000000000000FF00) << 40) |
+                ((val & 0x00000000000000FF) << 56));
+    }
+    return val;
+}
+
+int64_t binread::read_64s(const unsigned offset,
+                          const bool bswap = false) const {
+    if (offset > buf_.size() - sizeof(int64_t)) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    const auto val = reinterpret_cast<const int64_t *>(&buf_[offset])[0];
+    if (bswap) {
+        return (((val & 0xFF00000000000000) >> 56) |
+                ((val & 0x00FF000000000000) >> 40) |
+                ((val & 0x0000FF0000000000) >> 24) |
+                ((val & 0x000000FF00000000) >> 8) |
+                ((val & 0x00000000FF000000) << 8) |
+                ((val & 0x0000000000FF0000) << 24) |
+                ((val & 0x000000000000FF00) << 40) |
+                ((val & 0x00000000000000FF) << 56));
+    }
+    return val;
+}
+
+std::string binread::read_str(const unsigned offset, const unsigned len) const {
+    if (offset > buf_.size() - len) {
+        std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
+        return 0;
+    }
+    std::string str;
+    str.reserve(len);
+    str.append(reinterpret_cast<const char *>(&buf_[offset]), len);
+    return str;
 }
 
 inline std::string file_to_string(const char *filename) {
