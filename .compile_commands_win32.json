@@ -1,0 +1,7 @@
+[
+{
+  "directory": "C:/Users/ricco/Projects/build",
+  "command": "C:\\mingw64\\bin\\g++.exe  -DNOMINMAX @CMakeFiles/cpp_utils.dir/includes_CXX.rsp -g   -g -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fno-omit-frame-pointer -O2 -Werror -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -Wcast-qual -Wconversion -Wfloat-equal -Wformat-security -Wpointer-arith -Wshadow -Wswitch-default -Wswitch-enum -Wundef -Wunreachable-code -Wwrite-strings -std=c++1z -o CMakeFiles\\cpp_utils.dir\\src\\tests.cpp.obj -c S:\\Projects\\cpp_utils\\src\\tests.cpp",
+  "file": "S:/Projects/cpp_utils/src/tests.cpp"
+}
+]

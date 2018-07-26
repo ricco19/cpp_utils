@@ -22,7 +22,7 @@
             "cppStandard": "c++17",
             "intelliSenseMode": "clang-x64",
             "compilerPath": "C:/mingw64/bin/g++",
-            "compileCommands": "${workspaceFolder}/build_win32/compile_commands.json"
+            "compileCommands": "${workspaceFolder}/.compile_commands_win32.json"
         }
     ],
     "version": 4

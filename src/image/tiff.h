@@ -6,63 +6,143 @@
 #include <iostream>
 #include <vector>
 
+/*
+
+some_type read_ifd_entry(buf, offset)
+
+some_type
+    uint16_t -> tag id
+    uint16_t -> tag data type
+    uint32_t -> tag length (of data type)
+    ???????? -> tag values
+
+*/
 namespace image {
 
-static constexpr unsigned MAX_TIFF_SIZE = 10485760;
+enum : uint16_t {
+    TIFF_DATATYPE_BYTE = 1,
+    TIFF_DATATYPE_ASCII = 2,
+    TIFF_DATATYPE_SHORT = 3,
+    TIFF_DATATYPE_LONG = 4,
+    TIFF_DATATYPE_RATIONAL = 5
+};
+
+struct ifd_entry {
+    uint16_t tag = 0;
+    uint16_t type = 0;
+    uint32_t count = 0;
+    uint32_t data = 0;
+    bool data_is_offset = false;
+};
 
 struct tiff_ifd {
-    tiff_ifd(const int tag)
-        : id{tag} {}
-    int id = 0;
-    int type = 0;
-    int length = 0;
-    int value = 0;
+    uint32_t offset = 0;
+    uint16_t num_entries = 0;
+    std::vector<ifd_entry> entry;
 };
 
 class tiff_open {
   public:
     tiff_open(const char *filename)
         : buf_{utils::file_binread(filename)}
-        , is_tiff_{read_header()} {}
+        , is_tiff_{read_header()} {
+        read_ifd();
+    }
     bool is_tiff() const { return is_tiff_; }
+    tiff_ifd ifd;
 
   private:
-    std::vector<uint8_t> buf_{};
-    bool is_tiff_ = false;
+    utils::bytearr_t buf_{};
     bool is_big_endian_ = false;
-    int ifd_offset_ = 0;
+    bool is_tiff_ = false;
     bool read_header();
-
+    void read_ifd();
+    ifd_entry read_ifd_entry(const uint32_t offset);
 };
 
 bool tiff_open::read_header() {
     // Don't even attempt tiny files
     if (buf_.size() <= 12) {
+        buf_.clear();
         return false;
     }
-    // int pointer at offset 0 of buffer
-    // 4 bytes, TIFF header
-    switch (reinterpret_cast<const int *>(&buf_[0])[0]) {
+    // Get the byte order
+    switch (utils::read_int<uint32_t>(buf_, 0)) {
     case 0x002A4949:
         is_big_endian_ = false;
-        break;
+        return true;
     case 0x2A004D4D:
         is_big_endian_ = true;
+        return true;
+    default:
+        break;
+    }
+    buf_.clear();
+    std::cerr << "Cannot read TIFF file.\n -> Invalid header!\n";
+    return false;
+}
+
+ifd_entry tiff_open::read_ifd_entry(const uint32_t offs) {
+    using utils::read_int;
+    ifd_entry ent;
+    ent.tag = read_int<uint16_t>(buf_, offs, is_big_endian_);
+    ent.type = read_int<uint16_t>(buf_, offs + 2, is_big_endian_);
+    ent.count = read_int<uint32_t>(buf_, offs + 4, is_big_endian_);
+    // Left aligned regardless of endianess
+    switch (ent.type) {
+    case TIFF_DATATYPE_BYTE:
+        ent.data = static_cast<uint32_t>(buf_[offs + 8]);
+        if (ent.count > sizeof(uint32_t) / sizeof(uint8_t)) {
+            ent.data_is_offset = true;
+        }
+        break;
+    case TIFF_DATATYPE_SHORT:
+        ent.data = static_cast<uint32_t>(
+            read_int<uint16_t>(buf_, offs + 8, is_big_endian_));
+        if (ent.count > sizeof(uint32_t) / sizeof(uint16_t)) {
+            ent.data_is_offset = true;
+        }
+        break;
+    case TIFF_DATATYPE_LONG:
+        ent.data = read_int<uint32_t>(buf_, offs + 8, is_big_endian_);
+        if (ent.count > 1) {
+            ent.data_is_offset = true;
+        }
+        break;
+    case TIFF_DATATYPE_ASCII:
+    case TIFF_DATATYPE_RATIONAL:
+        ent.data = read_int<uint32_t>(buf_, offs + 8, is_big_endian_);
+        ent.data_is_offset = true;
         break;
     default:
-        buf_.clear();
-        std::cerr << "Cannot read TIFF file.\n -> Invalid header!\n";
-        return false;
+        ent.data = read_int<uint32_t>(buf_, offs + 8, is_big_endian_);
+        break;
     }
-    // int pointer at offset 4 of buffer
-    // 4 bytes, offset
-    ifd_offset_ = reinterpret_cast<const int *>(&buf_[4])[0];
-    if (ifd_offset_ < 8) {
+    return ent;
+}
+
+void tiff_open::read_ifd() {
+    using utils::read_int;
+    ifd.offset = read_int<uint32_t>(buf_, 4, is_big_endian_);
+    if (ifd.offset >= buf_.size()) {
+        is_tiff_ = false;
         std::cerr << "Cannot read TIFF file.\n -> Invalid IFD offset!\n";
-        return false;
+        return;
     }
-    std::cout << "ifd offset = " << ifd_offset_ << '\n';
-    return true;
+    ifd.num_entries = read_int<uint16_t>(buf_, ifd.offset, is_big_endian_);
+    if (ifd.num_entries * 12 > buf_.size()) {
+        is_tiff_ = false;
+        std::cerr << "Cannot read TIFF file.\n -> Invalid IFD!\n";
+        return;
+    }
+    std::cout << "ifd offset = " << ifd.offset << '\n';
+    std::cout << "ifd entries = " << ifd.num_entries << '\n';
+    uint32_t offs = ifd.offset + 2;
+    ifd.entry.reserve(ifd.num_entries);
+    for (uint16_t i = 0; i < ifd.num_entries; ++i) {
+        ifd.entry.emplace_back(read_ifd_entry(offs));
+        offs += 12;
+    }
 }
 
 // struct subfiletype {
