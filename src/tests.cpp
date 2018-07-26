@@ -44,16 +44,11 @@ int main(int argc, char *argv[]) {
 
     utils::print_file_info(argv[1]);
 
-    image::tiff_open tif(argv[1]);
+    image::tiff_read tif(argv[1]);
     if (tif.is_tiff()) {
-        std::cout << " -> dats a tiff\n";
+        tif.print_ifd();
     } else {
         std::cout << " -> not a tiff bro\n";
-        return 0;
-    }
-
-    for (const auto ent : tif.ifd.entry) {
-        std::cout << ent.tag << '\n';
     }
 
     return 0;
