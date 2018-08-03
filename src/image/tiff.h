@@ -96,14 +96,82 @@ enum : uint16_t {
     TIFF_DATATYPE_RATIONAL = 5
 };
 
+using utils::bytearr_t;
+using utils::read_int;
+
 class ifd_entry {
   public:
-    uint16_t tag = 0;
-    uint16_t type = 0;
-    uint32_t count = 0;
-    uint32_t data = 0;
-    bool data_is_offset = false;
+    ifd_entry() = delete;
+    ifd_entry(const bytearr_t &buf, const uint32_t offs, const bool is_be) {
+        tag_ = read_int<uint16_t>(buf, offs, is_be);
+        type_ = read_int<uint16_t>(buf, offs + 2, is_be);
+        count_ = read_int<uint32_t>(buf, offs + 4, is_be);
+        size_ = get_val_size();
+        if (is_val_offset()) {
+            offset_ = read_int<uint32_t>(buf, offs + 8, is_be);
+        } else {
+            offset_ = offs + 8;
+        }
+    }
+    constexpr std::string_view tag_name() const;
+    constexpr std::string_view type_name() const;
+    uint16_t type() const { return type_; }
+    uint32_t count() const { return count_; }
+    uint32_t size() const { return size_; }
+    uint32_t offset() const { return offset_; }
+
+  private:
+    uint16_t tag_ = 0;
+    uint16_t type_ = 0;
+    uint32_t count_ = 0;
+    uint32_t size_ = 0;
+    uint32_t offset_ = 0;
+    bool is_val_offset() const;
+    uint32_t get_val_size() const;
 };
+
+inline bool ifd_entry::is_val_offset() const {
+    switch (type_) {
+    case TIFF_DATATYPE_BYTE:
+    case TIFF_DATATYPE_ASCII:
+        if (count_ > 4) {
+            return true;
+        }
+        break;
+    case TIFF_DATATYPE_SHORT:
+        if (count_ > 2) {
+            return true;
+        }
+        break;
+    case TIFF_DATATYPE_LONG:
+        if (count_ > 1) {
+            return true;
+        }
+        break;
+    case TIFF_DATATYPE_RATIONAL:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
+inline uint32_t ifd_entry::get_val_size() const {
+    switch (type_) {
+    case TIFF_DATATYPE_BYTE:
+    case TIFF_DATATYPE_ASCII:
+        return count_;
+    case TIFF_DATATYPE_SHORT:
+        return count_ * 2;
+    case TIFF_DATATYPE_LONG:
+        return count_ * 4;
+    case TIFF_DATATYPE_RATIONAL:
+        return count_ * 8;
+    default:
+        break;
+    }
+    return 0;
+}
 
 struct tiff_ifd {
     uint32_t offset = 0;
@@ -121,72 +189,13 @@ class tiff_read {
     bool is_tiff() const { return is_tiff_; }
     void print_ifd() const;
 
-  protected:
-    utils::bytearr_t buf_{};
+  private:
+    bytearr_t buf_{};
     bool is_big_endian_ = false;
     bool is_tiff_ = false;
-
-  private:
     tiff_ifd ifd;
     bool read_header();
     void read_ifd();
-    ifd_entry read_ifd_entry(const uint32_t offset);
-    std::string get_ifd_ascii(const ifd_entry ent);
-};
-
-class ifd_entry2 : tiff_read {
-  public:
-    ifd_entry2() = delete;
-    ifd_entry2(const uint32_t offs) {
-        using utils::read_int;
-        tag_ = read_int<uint16_t>(buf_, offs, is_big_endian_);
-        type_ = read_int<uint16_t>(buf_, offs + 2, is_big_endian_);
-        count_ = read_int<uint32_t>(buf_, offs + 4, is_big_endian_);
-        // Left aligned regardless of endianess
-        switch (type_) {
-        case TIFF_DATATYPE_BYTE:
-            value_ = static_cast<uint32_t>(buf_[offs + 8]);
-            if (count_ > sizeof(uint32_t) / sizeof(uint8_t)) {
-                is_offset_ = true;
-            }
-            break;
-        case TIFF_DATATYPE_SHORT:
-            value_ = static_cast<uint32_t>(
-                read_int<uint16_t>(buf_, offs + 8, is_big_endian_));
-            if (count_ > sizeof(uint32_t) / sizeof(uint16_t)) {
-                is_offset_ = true;
-            }
-            break;
-        case TIFF_DATATYPE_LONG:
-            value_ = read_int<uint32_t>(buf_, offs + 8, is_big_endian_);
-            if (count_ > 1) {
-                is_offset_ = true;
-            }
-            break;
-        case TIFF_DATATYPE_ASCII:
-        case TIFF_DATATYPE_RATIONAL:
-            value_ = read_int<uint32_t>(buf_, offs + 8, is_big_endian_);
-            is_offset_ = true;
-            break;
-        default:
-            value_ = read_int<uint32_t>(buf_, offs + 8, is_big_endian_);
-            break;
-        }
-    }
-    constexpr std::string_view tag_name() const;
-
-  private:
-    uint16_t tag_ = 0;
-    uint16_t type_ = 0;
-    uint32_t count_ = 0;
-    uint32_t value_ = 0;
-    bool is_offset_ = false;
-    // Potential data types
-    std::vector<uint8_t> data_byte_{};
-    std::vector<uint16_t> data_short_{};
-    std::vector<uint32_t> data_long_{};
-    std::vector<uint64_t> data_rational_{};
-    std::string data_ascii_{};
 };
 
 bool tiff_read::read_header() {
@@ -196,7 +205,7 @@ bool tiff_read::read_header() {
         return false;
     }
     // Get the byte order
-    switch (utils::read_int<uint32_t>(buf_, 0)) {
+    switch (read_int<uint32_t>(buf_, 0)) {
     case 0x002A4949:
         is_big_endian_ = false;
         return true;
@@ -211,47 +220,7 @@ bool tiff_read::read_header() {
     return false;
 }
 
-ifd_entry tiff_read::read_ifd_entry(const uint32_t offs) {
-    using utils::read_int;
-    ifd_entry ent;
-    ent.tag = read_int<uint16_t>(buf_, offs, is_big_endian_);
-    ent.type = read_int<uint16_t>(buf_, offs + 2, is_big_endian_);
-    ent.count = read_int<uint32_t>(buf_, offs + 4, is_big_endian_);
-    // Left aligned regardless of endianess
-    switch (ent.type) {
-    case TIFF_DATATYPE_BYTE:
-        ent.data = static_cast<uint32_t>(buf_[offs + 8]);
-        if (ent.count > sizeof(uint32_t) / sizeof(uint8_t)) {
-            ent.data_is_offset = true;
-        }
-        break;
-    case TIFF_DATATYPE_SHORT:
-        ent.data = static_cast<uint32_t>(
-            read_int<uint16_t>(buf_, offs + 8, is_big_endian_));
-        if (ent.count > sizeof(uint32_t) / sizeof(uint16_t)) {
-            ent.data_is_offset = true;
-        }
-        break;
-    case TIFF_DATATYPE_LONG:
-        ent.data = read_int<uint32_t>(buf_, offs + 8, is_big_endian_);
-        if (ent.count > 1) {
-            ent.data_is_offset = true;
-        }
-        break;
-    case TIFF_DATATYPE_ASCII:
-    case TIFF_DATATYPE_RATIONAL:
-        ent.data = read_int<uint32_t>(buf_, offs + 8, is_big_endian_);
-        ent.data_is_offset = true;
-        break;
-    default:
-        ent.data = read_int<uint32_t>(buf_, offs + 8, is_big_endian_);
-        break;
-    }
-    return ent;
-}
-
 void tiff_read::read_ifd() {
-    using utils::read_int;
     ifd.offset = read_int<uint32_t>(buf_, 4, is_big_endian_);
     if (ifd.offset >= buf_.size()) {
         is_tiff_ = false;
@@ -267,13 +236,39 @@ void tiff_read::read_ifd() {
     uint32_t offs = ifd.offset + 2;
     ifd.entry.reserve(ifd.num_entries);
     for (uint16_t i = 0; i < ifd.num_entries; ++i) {
-        ifd.entry.emplace_back(read_ifd_entry(offs));
+        ifd.entry.emplace_back(ifd_entry{buf_, offs, is_big_endian_});
         offs += 12;
     }
 }
 
-inline constexpr std::string_view get_tag_name(const uint16_t tag) {
-    switch (tag) {
+static inline double get_rational(const bytearr_t &buf, const uint32_t offs,
+                                  const bool is_be) {
+    constexpr auto sz = static_cast<uint32_t>(sizeof(uint32_t));
+    const auto num = read_int<uint32_t>(buf, offs, is_be);
+    const auto den = read_int<uint32_t>(buf, offs + sz, is_be);
+    return static_cast<double>(num) / static_cast<double>(den);
+}
+
+inline constexpr std::string_view ifd_entry::type_name() const {
+    switch (type_) {
+    case TIFF_DATATYPE_BYTE:
+        return std::string_view{"Byte"};
+    case TIFF_DATATYPE_ASCII:
+        return std::string_view{"Ascii"};
+    case TIFF_DATATYPE_SHORT:
+        return std::string_view{"Short"};
+    case TIFF_DATATYPE_LONG:
+        return std::string_view{"Long"};
+    case TIFF_DATATYPE_RATIONAL:
+        return std::string_view{"Rational"};
+    default:
+        break;
+    }
+    return std::string_view{"Unknown"};
+}
+
+inline constexpr std::string_view ifd_entry::tag_name() const {
+    switch (tag_) {
     case TAG_NEW_SUBFILETYPE:
         return std::string_view{"NewSubFileType"};
     case TAG_SUBFILETYPE:
@@ -349,47 +344,50 @@ inline constexpr std::string_view get_tag_name(const uint16_t tag) {
     default:
         break;
     }
-    return std::string_view{"Unknown (" + std::to_string(tag) + ')'};
-}
-
-inline constexpr std::string_view get_type_name(const uint16_t type) {
-    switch (type) {
-    case TIFF_DATATYPE_BYTE:
-        return std::string_view{"Byte"};
-    case TIFF_DATATYPE_ASCII:
-        return std::string_view{"Ascii"};
-    case TIFF_DATATYPE_SHORT:
-        return std::string_view{"Short"};
-    case TIFF_DATATYPE_LONG:
-        return std::string_view{"Long"};
-    case TIFF_DATATYPE_RATIONAL:
-        return std::string_view{"Rational"};
-    default:
-        break;
-    }
-    return std::string_view{"Unknown (" + std::to_string(type) + ')'};
+    return std::string_view{"Unknown"};
 }
 
 void tiff_read::print_ifd() const {
     std::cout << "IFD Offset: " << ifd.offset << '\n';
     std::cout << "IFD Entries: " << ifd.num_entries << '\n';
     for (const auto ent : ifd.entry) {
-        std::cout << "  [" << get_tag_name(ent.tag) << "]\n";
-        std::cout << "    Type: " << get_type_name(ent.type) << '\n';
-        std::cout << "    Length: " << ent.count << '\n';
-        if (ent.data_is_offset) {
-            if (ent.type == TIFF_DATATYPE_ASCII) {
-                std::string val(ent.count, 0);
-                memcpy(&val[0], &buf_[ent.data], ent.count);
-                std::cout << "    Value: " << val << '\n';
-            } else {
-                std::cout << "    Value: ?????????\n";
-            }
-        } else {
-            std::cout << "    Value: " << ent.data << '\n';
+        std::cout << "  [" << ent.tag_name()
+                  << "]\n    Type: " << ent.type_name()
+                  << ", Length: " << ent.count() << ", " << ent.size()
+                  << " bytes.\n";
+        if (ent.type() == TIFF_DATATYPE_ASCII) {
+            std::string str(ent.size(), 0);
+            memcpy(&str[0], &buf_[ent.offset()], ent.size());
+            std::cout << "    " << str << '\n';
+            return;
+        }
+        std::vector<uint32_t> val;
+        val.reserve(ent.count());
+
+        uint32_t sz = 0;
+        switch (ent.type()) {
+        case TIFF_DATATYPE_BYTE:
+            sz = 1;
+            break;
+        case TIFF_DATATYPE_SHORT:
+            sz = 2;
+            break;
+        case TIFF_DATATYPE_LONG:
+            sz = 4;
+            break;
+        case TIFF_DATATYPE_RATIONAL:
+            sz = 8;
+            break;
+        default:
+            break;
+        }
+
+        for (unsigned i = 0; i < ent.count(); ++i) {
+            val.emplace_back(read_int<uint16_t>(buf_, i * 2, is_big_endian_));
         }
     }
 }
+} // namespace image
 
 } // namespace image
 
