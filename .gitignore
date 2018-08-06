@@ -2,6 +2,9 @@
 /build*
 /bin
 
+# Compile commands file
+*.compile_commands*
+
 # Prerequisites
 *.d
 

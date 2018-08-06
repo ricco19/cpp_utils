@@ -21,8 +21,7 @@
             "cStandard": "c11",
             "cppStandard": "c++17",
             "intelliSenseMode": "clang-x64",
-            "compilerPath": "C:/mingw64/bin/g++",
-            "compileCommands": "${workspaceFolder}/.compile_commands_win32.json"
+            "compilerPath": "C:/mingw64/bin/g++"
         }
     ],
     "version": 4

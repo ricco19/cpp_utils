@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/home/pratt/brian/cpp_utils/build_linux",
-  "command": "/usr/bin/c++  -DNOMINMAX -I/home/pratt/brian/cpp_utils/src  -g    -g -fsanitize=address -fno-omit-frame-pointer  -g -fsanitize=undefined  -g -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fno-omit-frame-pointer -O2 -Werror -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -Wcast-qual -Wconversion -Wfloat-equal -Wformat-security -Wpointer-arith -Wshadow -Wswitch-default -Wswitch-enum -Wundef -Wunreachable-code -Wwrite-strings -std=c++1z -o CMakeFiles/cpp_utils.dir/src/tests.cpp.o -c /home/pratt/brian/cpp_utils/src/tests.cpp",
-  "file": "/home/pratt/brian/cpp_utils/src/tests.cpp"
-}
-]
