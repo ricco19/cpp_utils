@@ -44,12 +44,18 @@ int main(int argc, char *argv[]) {
 
     utils::print_file_info(argv[1]);
 
-    image::tiff_read tif(argv[1]);
+    auto tif = image::tiff_open(argv[1]);
     if (tif.is_tiff()) {
-        tif.print_ifd();
+        std::cout << "TIFF loaded!\n";
+        std::cout << "  " << tif.width() << 'x' << tif.height() << ' '
+                  << tif.bytes_per_pixel() << '\n';
+        const auto p = tif.get_pixels();
+        std::cout << "  " << p.size() << '\n';
     } else {
-        std::cout << " -> not a tiff bro\n";
+        std::cout << "Not a TIFF!\n";
     }
+
+
 
     return 0;
 }

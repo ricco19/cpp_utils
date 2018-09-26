@@ -36,16 +36,7 @@ inline bool has_bom(const std::string &s) {
     return (s.size() > 3) && (s[0] == '\xEF') && (s[1] == '\xBB') &&
            (s[2] == '\xBF');
 }
-// inline uint64_t byteswap64(const uint64_t inval) {
-//     return (((inval & 0xFF00000000000000) >> 56) |
-//             ((inval & 0x00FF000000000000) >> 40) |
-//             ((inval & 0x0000FF0000000000) >> 24) |
-//             ((inval & 0x000000FF00000000) >> 8) |
-//             ((inval & 0x00000000FF000000) << 8) |
-//             ((inval & 0x0000000000FF0000) << 24) |
-//             ((inval & 0x000000000000FF00) << 40) |
-//             ((inval & 0x00000000000000FF) << 56));
-// }
+
 inline int biggest_int(const int a, const int b) {
     if (a > b) {
         return a;
@@ -75,7 +66,7 @@ inline bytearr_t file_binread(const char *filename) {
     // Read entire file into a string buffer
     fst.seekg(std::ios::beg);
     bytearr_t buf(static_cast<unsigned>(filesz));
-    fst.read(reinterpret_cast<char *>(&buf[0]), filesz);
+    fst.read(reinterpret_cast<char *>(&buf[0]), filesz); // NOLINT
     fst.close();
     return buf;
 }
@@ -108,73 +99,10 @@ inline bytearr_t file_binread(const char *filename, const int beg,
     // Read file range into a string buffer
     fst.seekg(std::ios::beg + beg);
     bytearr_t buf(static_cast<unsigned>(bufsz));
-    fst.read(reinterpret_cast<char *>(&buf[0]), bufsz);
+    fst.read(reinterpret_cast<char *>(&buf[0]), bufsz); // NOLINT
     fst.close();
     return buf;
 }
-
-// template <class IntType>
-// IntType read_int(const bytearr_t &buf, const unsigned offset,
-//                      const bool bswap = false) {
-//     // Bounds checking
-//     constexpr auto sz = sizeof(IntType);
-//     if (offset + sz > buf.size()) {
-//         std::cerr << "[ERROR] Cannot binary read data, would overflow!\n";
-//         return 0;
-//     }
-//     // Read in big endian order
-//     if (bswap) {
-//         switch (sz) {
-//         case 8ULL:
-//             return static_cast<IntType>(
-//                 (static_cast<uint64_t>(buf[offset]) << 56) |
-//                 (static_cast<uint64_t>(buf[offset + 1]) << 48) |
-//                 (static_cast<uint64_t>(buf[offset + 2]) << 40) |
-//                 (static_cast<uint64_t>(buf[offset + 3]) << 32) |
-//                 (static_cast<uint64_t>(buf[offset + 4]) << 24) |
-//                 (static_cast<uint64_t>(buf[offset + 5]) << 16) |
-//                 (static_cast<uint64_t>(buf[offset + 6]) << 8) |
-//                 static_cast<uint64_t>(buf[offset + 7]));
-//             break;
-//         case 4ULL:
-//             return static_cast<IntType>(
-//                 (buf[offset] << 24) | (buf[offset + 1] << 16) |
-//                 (buf[offset + 2] << 8) | buf[offset + 3]);
-//             break;
-//         case 2ULL:
-//             return static_cast<IntType>((buf[offset] << 8) | buf[offset +
-//             1]); break;
-//         case 1ULL:
-//             return static_cast<IntType>(buf[offset]);
-//         default:
-//             return 0;
-//         }
-//     }
-//     // Read in little endian order
-//     switch (sz) {
-//     case 8ULL:
-//         return static_cast<IntType>(
-//             (static_cast<uint64_t>(buf[offset + 7]) << 56) |
-//             (static_cast<uint64_t>(buf[offset + 6]) << 48) |
-//             (static_cast<uint64_t>(buf[offset + 5]) << 40) |
-//             (static_cast<uint64_t>(buf[offset + 4]) << 32) |
-//             (static_cast<uint64_t>(buf[offset + 3]) << 24) |
-//             (static_cast<uint64_t>(buf[offset + 2]) << 16) |
-//             (static_cast<uint64_t>(buf[offset + 1]) << 8) |
-//             static_cast<uint64_t>(buf[offset]));
-//     case 4ULL:
-//         return static_cast<IntType>((buf[offset + 3] << 24) |
-//                                     (buf[offset + 2] << 16) |
-//                                     (buf[offset + 1] << 8) | buf[offset]);
-//     case 2ULL:
-//         return static_cast<IntType>((buf[offset + 1] << 8) | buf[offset]);
-//     case 1ULL:
-//         return static_cast<IntType>(buf[offset]);
-//     default:
-//         break;
-//     }
-//     return 0;
-// }
 
 template <class IntType>
 IntType read_int(const bytearr_t &buf, const unsigned offset,
@@ -221,47 +149,6 @@ IntType read_int(const bytearr_t &buf, const unsigned offset,
     }
     return val;
 }
-
-// inline list_t list_from_filelines(const char *filename) {
-//     list_t list{};
-//     // Load into a temp string buffer first, this is actually faster
-//     const std::string buf = file_to_string(filename);
-//     if (buf.empty()) {
-//         return list;
-//     }
-//     // Check for byte order mark
-//     size_t start_pos = 0;
-//     if (internal::has_bom(buf)) {
-//         start_pos = 3;
-//     }
-//     // Loop through string buffer looking for delimiter
-//     size_t end_pos = 0;
-//     if (internal::is_crlf(buf)) {
-//         while (true) {
-//             end_pos = buf.find("\r\n", start_pos, 2);
-//             if (end_pos == std::string::npos) {
-//                 break;
-//             }
-//             list.emplace_back(buf.substr(start_pos, end_pos - start_pos));
-//             start_pos = end_pos + 2;
-//         }
-//     } else {
-//         while (true) {
-//             end_pos = buf.find('\n', start_pos);
-//             if (end_pos == std::string::npos) {
-//                 break;
-//             }
-//             list.emplace_back(buf.substr(start_pos, end_pos - start_pos));
-//             start_pos = end_pos + 1;
-//         }
-//     }
-//     // There may be (probably is) one more trailing entry
-//     // This will ignore if the last entry is null
-//     if (start_pos < buf.size()) {
-//         list.emplace_back(buf.substr(start_pos, buf.size() - start_pos));
-//     }
-//     return list;
-// }
 
 inline void list_shuffle(list_t &list) {
 #ifdef __MINGW32__
