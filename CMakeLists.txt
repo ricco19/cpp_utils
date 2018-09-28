@@ -56,6 +56,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         benchmark
         tiff
+        turbojpeg
         $<$<BOOL:${WIN32}>:shlwapi>
         $<$<BOOL:${UNIX}>:pthread>
 )
