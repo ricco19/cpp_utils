@@ -9,33 +9,14 @@
 
 namespace image {
 
-enum : int { TYPE_UNKNOWN = -1, TYPE_JPEG, TYPE_TIFF };
-static inline int get_image_type(const char *filename) {
-    const auto ext = strrchr(filename, '.');
-    if (ext == nullptr) {
-        return TYPE_UNKNOWN;
-    }
-    // JPEG
-    if ((strncasecmp(ext, ".jpg", 4) == 0) ||
-        (strncasecmp(ext, ".jpeg", 5) == 0)) {
-        return TYPE_JPEG;
-    }
-    // TIFF
-    if ((strncasecmp(ext, ".tif", 4) == 0) ||
-        (strncasecmp(ext, ".tiff", 5) == 0)) {
-        return TYPE_TIFF;
-    }
-    return TYPE_UNKNOWN;
-}
-
-enum : int { FORMAT_UNKNOWN = -1, FORMAT_RGB, FORMAT_RGBA, FORMAT_GREY };
+enum : int { PIXFMT_UNKNOWN = -1, PIXFMT_RGB, PIXFMT_RGBA, PIXFMT_GREY };
 static inline constexpr int num_components(const int fmt) {
     switch (fmt) {
-    case FORMAT_GREY:
+    case PIXFMT_GREY:
         return 1;
-    case FORMAT_RGB:
+    case PIXFMT_RGB:
         return 3;
-    case FORMAT_RGBA:
+    case PIXFMT_RGBA:
         return 4;
     default:
         break;
@@ -46,6 +27,7 @@ static inline constexpr int num_components(const int fmt) {
 class pixels_t {
   public:
     // Constructors
+    pixels_t() = default;
     pixels_t(const utils::bytearr_t &p, const int fmt, const int w, const int h)
         : buf_{p}
         , format_{fmt}
@@ -61,15 +43,22 @@ class pixels_t {
         , bytes_per_pixel_{num_components(fmt)}
         , is_valid_{verify_data()} {}
     // Member functions
-    int convert_to(const int dst_fmt) const;
+    int convert_to(const int dst_fmt);
     int width() const { return width_; }
     int height() const { return height_; }
     int bytes_per_pixel() const { return bytes_per_pixel_; }
     bool is_valid() const { return is_valid_; }
+    void clear() {
+        buf_.clear();
+        format_ = PIXFMT_UNKNOWN;
+        width_ = 0;
+        height_ = 0;
+        bytes_per_pixel_ = 0;
+    }
 
   private:
     utils::bytearr_t buf_{};
-    int format_{FORMAT_UNKNOWN};
+    int format_{PIXFMT_UNKNOWN};
     int width_{};
     int height_{};
     int bytes_per_pixel_{};
@@ -78,26 +67,57 @@ class pixels_t {
         const auto expected_sz =
             static_cast<unsigned>(width_ * height_ * bytes_per_pixel_);
         if (buf_.size() != expected_sz) {
-            buf_.clear();
-            format_ = FORMAT_UNKNOWN;
-            width_ = 0;
-            height_ = 0;
-            bytes_per_pixel_ = 0;
+            clear();
             return false;
         }
         return true;
     }
+    // Pixel conversion functions
+    inline int pc_rgb_to_grey();
 };
 
-namespace internal {}
+inline int pixels_t::pc_rgb_to_grey() {
+    // Verify the current size of the buffer
+    const auto src_sz = static_cast<unsigned>(width_ * height_ * 3);
+    if (buf_.size() != src_sz) {
+        return -1;
+    }
+    const int dst_sz = width_ * height_;
+    // Average out every 3 pixels
+    for (int i = 0; i < dst_sz; ++i) {
+        const int pos = i * 3;
+        buf_[i] = (buf_[pos] + buf_[pos+1] + buf_[pos+2]) / 3;
+    }
+    // Trim the rest of the vector
+    buf_.resize(dst_sz);
+    // Update the image variables
+    format_ = PIXFMT_GREY;
+    bytes_per_pixel_ = 1;
+    return format_;
+}
 
-int pixels_t::convert_to(const int fmt) const {
+int pixels_t::convert_to(const int fmt){
     // No conversion necessary
     if (fmt == format_) {
-        return fmt;
+        return format_;
     }
-    return 0;
+    switch (fmt) {
+    case PIXFMT_GREY:
+        switch (format_) {
+        case PIXFMT_RGB:
+            return pc_rgb_to_grey();
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+    // No conversion was done
+    return format_;
 }
+
+
 
 } // namespace image
 

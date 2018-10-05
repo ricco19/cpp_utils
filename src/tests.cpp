@@ -1,5 +1,4 @@
 #include "image/image.h"
-#include "image/tiff.h"
 #include "utils/natcmp.h"
 #include "utils/quickrng.h"
 #include "utils/system.h"
@@ -122,16 +121,16 @@ int main(int argc, char *argv[]) {
         std::cout << "Nothing to do!\n";
         return 0;
     }
-    utils::print_file_info(argv[1]);
-    const auto img = image::load_image{argv[1]};
-    if (img.is_image()) {
-        std::cout << "  This is an image!\n";
-        std::cout << "    w: " << img.width() << ", h: " << img.height()
-                  << '\n';
-        const auto p = img.get_pixels(image::FORMAT_GREY);
-        std::cout << "    size: " << p.size() << '\n';
-    } else {
-        std::cout << "  Not an image.\n";
-    }
+    // utils::print_file_info(argv[1]);
+    // const auto img = image::load_image{argv[1]};
+    // if (img.is_image()) {
+    //     std::cout << "  This is an image!\n";
+    //     std::cout << "    w: " << img.width() << ", h: " << img.height()
+    //               << '\n';
+    //     const auto p = img.get_pixels(image::FORMAT_GREY);
+    //     std::cout << "    size: " << p.size() << '\n';
+    // } else {
+    //     std::cout << "  Not an image.\n";
+    // }
     return 0;
 }

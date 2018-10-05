@@ -256,6 +256,27 @@ inline void print_file_info(const char *path) {
         break;
     }
 }
+
+// Determine some "known" file extensions
+enum : int { EXT_UNKNOWN = -1, EXT_JPEG, EXT_TIFF };
+inline int get_file_ext(const char *filename) {
+    const auto ext = strrchr(filename, '.');
+    if (ext == nullptr) {
+        return EXT_UNKNOWN;
+    }
+    // JPEG
+    if ((strncasecmp(ext, ".jpg", 4) == 0) ||
+        (strncasecmp(ext, ".jpeg", 5) == 0)) {
+        return EXT_JPEG;
+    }
+    // TIFF
+    if ((strncasecmp(ext, ".tif", 4) == 0) ||
+        (strncasecmp(ext, ".tiff", 5) == 0)) {
+        return EXT_TIFF;
+    }
+    return EXT_UNKNOWN;
+}
+
 /*
 ///////////////////////////////
 // Windows directory listing //
