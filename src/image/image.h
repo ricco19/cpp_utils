@@ -20,7 +20,7 @@ namespace internal {
 class jpeg {
   public:
     jpeg() = default;
-    jpeg(const char *filename) { load(filename); }
+    jpeg(const char *filename) { is_jpeg_ = read_header(filename); }
     ~jpeg() {
         if (hand_ != nullptr) {
             tjDestroy(hand_);
@@ -32,82 +32,102 @@ class jpeg {
     jpeg &operator=(const jpeg &) = delete;
     jpeg &operator=(jpeg &&) = delete;
     // Member functions
-    bool load(const char *filename) {
-        if (hand_ != nullptr) {
-            tjDestroy(hand_);
-            width_ = 0;
-            height_ = 0;
-            subsamp_ = 0;
-            colorspace_ = 0;
-        }
-        comp_img_ = utils::file_binread(filename);
-        if (comp_img_.size() < 10) {
-            is_jpeg_ = false;
-            return false;
-        }
-
-        hand_ = tjInitDecompress();
-        if (tjDecompressHeader3(hand_, &comp_img_[0], comp_img_.size(), &width_,
-                                &height_, &subsamp_, &colorspace_) == -1) {
-            is_jpeg_ = false;
-            return false;
-        }
-        is_jpeg_ = true;
-        return true;
+    bool open(const char *filename) {
+        clear();
+        is_jpeg_ = read_header(filename);
+        return is_jpeg_;
     }
     bool is_jpeg() const { return is_jpeg_; }
     uint32_t width() const { return width_; }
     uint32_t height() const { return height_; }
-    utils::bytearr_t get_pixels(const int fmt) const {
-
-        if ((hand_ == nullptr) || (!is_jpeg_)) {
-            std::cout << "bye?\n";
-            return utils::bytearr_t{};
+    void clear() {
+        if (hand_ != nullptr) {
+            tjDestroy(hand_);
         }
-
-        const int num_comp = image::num_components(fmt);
-        if (num_comp < 1) {
-            return utils::bytearr_t{};
+        file_buf_.clear();
+        is_jpeg_ = false;
+        width_ = 0;
+        height_ = 0;
+        subsamp_ = 0;
+        colorspace_ = 0;
+    }
+    pixels get_pixels(const int fmt = PIXFMT_UNKNOWN) {
+        // Make sure we actually have a jpeg
+        if (!is_jpeg_ || hand_ == nullptr) {
+            return pixels{};
         }
-
-        const auto pitch = num_comp * width_;
-        const auto sz = pitch * height_;
-        if (sz < 1) {
-            return utils::bytearr_t{};
+        // Get pixel formats
+        const int jpeg_pix_fmt{get_jpeg_pixel_fmt(fmt)};
+        const int pix_fmt{get_pixel_fmt(jpeg_pix_fmt)};
+        // Initalize pixel buffer
+        pixels p{pix_fmt, width_, height_};
+        if (!p.is_valid()) {
+            return p;
         }
-
-        int jpeg_fmt = -1;
-        switch (fmt) {
-        case PIXFMT_GREY:
-            jpeg_fmt = TJPF_GRAY;
-            break;
-        case PIXFMT_RGB:
-            jpeg_fmt = TJPF_RGB;
-            break;
-        case PIXFMT_RGBA:
-            jpeg_fmt = TJPF_RGBA;
-            break;
-        default:
-            return utils::bytearr_t{};
+        // Decompress image into pixels
+        const int pitch = width_ * pixfmt_components(pix_fmt);
+        const int err = tjDecompress2(hand_, &file_buf_[0], file_buf_.size(),
+                                      &p.buf[0], width_, pitch, height_,
+                                      jpeg_pix_fmt, TJFLAG_NOREALLOC);
+        if (err != 0) {
+            p.clear();
         }
-
-        utils::bytearr_t pixels(sz, 0);
-        if (tjDecompress2(hand_, &comp_img_[0], comp_img_.size(), &pixels[0],
-                          width_, pitch, height_, jpeg_fmt,
-                          TJFLAG_NOREALLOC | TJFLAG_FASTDCT) == -1) {
-            pixels.clear();
-        }
-        return pixels;
+        return p;
     }
 
   private:
     tjhandle hand_{nullptr};
-    utils::bytearr_t comp_img_{};
+    utils::bytearr_t file_buf_{};
     bool is_jpeg_{false};
     int width_{};
     int height_{};
     int subsamp_{};
     int colorspace_{};
+    // Opens a file and reads just the header
+    inline bool read_header(const char *filename) {
+        // Load entire file into memory
+        file_buf_ = utils::file_binread(filename);
+        if (file_buf_.size() < 10) {
+            return false;
+        }
+        // Create a decompress handle and fetch information
+        hand_ = tjInitDecompress();
+        if (tjDecompressHeader3(hand_, &file_buf_[0], file_buf_.size(), &width_,
+                                &height_, &subsamp_, &colorspace_) == -1) {
+            return false;
+        }
+        return true;
+    }
+    // Translates our PIXFMT to jpegturbos pixel format
+    inline int get_jpeg_pixel_fmt(const int fmt) {
+        switch (fmt) {
+        case PIXFMT_GREY:
+            return TJPF_GRAY;
+        case PIXFMT_RGBA:
+            return TJPF_RGBA;
+        // If no format is specified, we default to RGB or GREY depending on the
+        // images colorspace
+        case PIXFMT_RGB:
+        case PIXFMT_UNKNOWN:
+        default:
+            break;
+        }
+        return TJPF_RGB;
+    }
+    // Translates jpegturbos pixel format to our PIXFMT
+    inline int get_pixel_fmt(const int fmt) {
+        switch (fmt) {
+        case TJPF_GRAY:
+            return PIXFMT_GREY;
+        case TJPF_RGBA:
+            return PIXFMT_RGBA;
+        case TJPF_RGB:
+            return PIXFMT_RGB;
+        default:
+            break;
+        }
+        return PIXFMT_UNKNOWN;
+    }
 };
 
 class tiff {
@@ -171,31 +191,6 @@ class tiff {
     uint16_t bits_pp_{};
 };
 
-inline pixels_t load_jpeg(const char *filename) {
-    // Load the file into memory
-    const auto buf = utils::file_binread(filename);
-    if (buf.size() <= 10) {
-        return pixels_t{};
-    }
-    // Initialze decompress handle
-    auto handle = tjInitDecompress();
-    if (handle == nullptr) {
-        return pixels_t{};
-    }
-    int width{};
-    int height{};
-    int subsamp{};
-    int colorspace{};
-    const int err = tjDecompressHeader3(handle, &buf[0], buf.size(), &width,
-                                         &height, &subsamp, &colorspace);
-    if (err < 0) {
-        tjDestroy(handle);
-        return pixels_t{};
-    }
-
-    return pixels_t{};
-}
-
 } // namespace internal
 
 class load_image {
@@ -230,7 +225,7 @@ class load_image {
 
   private:
     bool is_image_{false};
-    image::pixels_t pixels_{};
+    image::pixels pixels_{};
 };
 } // namespace image
 

@@ -1,22 +1,25 @@
 /*
-  helpers.h -- Image constants and generic helper functions
+  pixels.h -- Image constants and generic helper functions
 */
-#ifndef HELPERS_H
-#define HELPERS_H
+#ifndef PIXELS_H
+#define PIXELS_H
 
 #include "utils/system.h"
 #include <cstring>
 
 namespace image {
 
-enum : int { PIXFMT_UNKNOWN = -1, PIXFMT_RGB, PIXFMT_RGBA, PIXFMT_GREY };
-static inline constexpr int num_components(const int fmt) {
+// Supported pixel formats
+enum class pxfmt : int { INVALID = -1, RGB, RGBA, GRAY, GREY };
+// Returns the number of bytes per pixel component for each format
+constexpr int pxfmt_components(const pxfmt fmt) {
     switch (fmt) {
-    case PIXFMT_GREY:
+    case pxfmt::GRAY:
+    case pxfmt::GREY:
         return 1;
-    case PIXFMT_RGB:
+    case pxfmt::RGB:
         return 3;
-    case PIXFMT_RGBA:
+    case pxfmt::RGBA:
         return 4;
     default:
         break;
@@ -24,79 +27,87 @@ static inline constexpr int num_components(const int fmt) {
     return -1;
 }
 
-class pixels_t {
-  public:
-    // Constructors
-    pixels_t() = default;
-    pixels_t(const utils::bytearr_t &p, const int fmt, const int w, const int h)
-        : buf_{p}
-        , format_{fmt}
-        , width_{w}
-        , height_{h}
-        , bytes_per_pixel_{num_components(fmt)}
-        , is_valid_{verify_data()} {}
-    pixels_t(utils::bytearr_t &&p, const int fmt, const int w, const int h)
-        : buf_{p}
-        , format_{fmt}
-        , width_{w}
-        , height_{h}
-        , bytes_per_pixel_{num_components(fmt)}
-        , is_valid_{verify_data()} {}
-    // Member functions
-    int convert_to(const int dst_fmt);
-    int width() const { return width_; }
-    int height() const { return height_; }
-    int bytes_per_pixel() const { return bytes_per_pixel_; }
-    bool is_valid() const { return is_valid_; }
-    void clear() {
-        buf_.clear();
-        format_ = PIXFMT_UNKNOWN;
-        width_ = 0;
-        height_ = 0;
-        bytes_per_pixel_ = 0;
+// Calculate the number of bytes of a given image size and format
+// Returns 0 on error
+inline unsigned px_bytes(const int w, const int h, const pxfmt fmt) {
+    // Maximum dimension for width and height of an image
+    constexpr int MAX_DIM = 10000;
+    const auto comp = pxfmt_components(fmt);
+    if (w > MAX_DIM || h > MAX_DIM || comp < 1) {
+        return 0;
     }
-
-  private:
-    utils::bytearr_t buf_{};
-    int format_{PIXFMT_UNKNOWN};
-    int width_{};
-    int height_{};
-    int bytes_per_pixel_{};
-    bool is_valid_{false};
-    bool verify_data() {
-        const auto expected_sz =
-            static_cast<unsigned>(width_ * height_ * bytes_per_pixel_);
-        if (buf_.size() != expected_sz) {
-            clear();
-            return false;
-        }
-        return true;
-    }
-    // Pixel conversion functions
-    inline int pc_rgb_to_grey();
-};
-
-inline int pixels_t::pc_rgb_to_grey() {
-    // Verify the current size of the buffer
-    const auto src_sz = static_cast<unsigned>(width_ * height_ * 3);
-    if (buf_.size() != src_sz) {
-        return -1;
-    }
-    const int dst_sz = width_ * height_;
-    // Average out every 3 pixels
-    for (int i = 0; i < dst_sz; ++i) {
-        const int pos = i * 3;
-        buf_[i] = (buf_[pos] + buf_[pos+1] + buf_[pos+2]) / 3;
-    }
-    // Trim the rest of the vector
-    buf_.resize(dst_sz);
-    // Update the image variables
-    format_ = PIXFMT_GREY;
-    bytes_per_pixel_ = 1;
-    return format_;
+    return static_cast<unsigned>(w * h * comp);
 }
 
-int pixels_t::convert_to(const int fmt){
+class pixels {
+  public:
+    // Default construct - empty buffer and values
+    pixels() = default;
+    // Format, width, height - allocates buffer
+    pixels(const pxfmt fmt, const int w, const int h)
+        : format_{fmt}
+        , width_{w}
+        , height_{h}
+        , buf_(px_bytes(w, h, fmt), 0)
+        , is_valid_{verify_buf()} {}
+    // Moves buffer and verifys
+    pixels(utils::bytes &&p, const pxfmt fmt, const int w, const int h)
+        : format_{fmt}
+        , width_{w}
+        , height_{h}
+        , buf_{p}
+        , is_valid_{verify_buf()} {}
+    // Copys buffer and verifys
+    pixels(const utils::bytes &p, const pxfmt fmt, const int w, const int h)
+        : format_{fmt}
+        , width_{w}
+        , height_{h}
+        , buf_{p}
+        , is_valid_{verify_buf()} {}
+    // Simple getter functions
+    pxfmt format() const { return format_; }
+    int width() const { return width_; }
+    int height() const { return height_; }
+    utils::bytes const &buf() const { return buf_; }
+    bool is_valid() const { return is_valid_; }
+
+  private:
+    // Internal variables
+    pxfmt format_{pxfmt::INVALID};
+    int width_{0};
+    int height_{0};
+    utils::bytes buf_{};
+    bool is_valid_{false};
+
+    // Internal functions
+    void clear();
+    bool verify_buf();
+};
+
+// Resets the class back to empty/clean state
+inline void pixels::clear() {
+    format_ = pxfmt::INVALID;
+    width_ = 0;
+    height_ = 0;
+    is_valid_ = false;
+    buf_.clear();
+}
+
+// Verifies the size of the buffer
+inline bool pixels::verify_buf() {
+    if (buf_.empty()) {
+        clear();
+        return false;
+    }
+    if (buf_.size() != px_bytes(width_, height_, format_)) {
+        clear();
+        return false;
+    }
+    return true;
+}
+
+/*
+inline int pixels::convert_to(const int fmt) {
     // No conversion necessary
     if (fmt == format_) {
         return format_;
@@ -117,8 +128,26 @@ int pixels_t::convert_to(const int fmt){
     return format_;
 }
 
-
-
+inline int pixels::pc_rgb_to_grey() {
+    // Verify the current size of the buffer
+    const auto src_sz = static_cast<unsigned>(width_ * height_ * 3);
+    if (buf.size() != src_sz) {
+        return -1;
+    }
+    const int dst_sz = width_ * height_;
+    // Average out every 3 pixels
+    for (int i = 0; i < dst_sz; ++i) {
+        const int pos = i * 3;
+        buf[i] = (buf[pos] + buf[pos + 1] + buf[pos + 2]) / 3;
+    }
+    // Trim the rest of the vector
+    buf.resize(dst_sz);
+    // Update the image variables
+    format_ = PIXFMT_GREY;
+    bytes_per_pixel_ = 1;
+    return format_;
+}
+*/
 } // namespace image
 
 #endif

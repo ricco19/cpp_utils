@@ -21,7 +21,7 @@
 
 namespace utils {
 
-using bytearr_t = std::vector<uint8_t>;
+using bytes = std::vector<uint8_t>;
 using list_t = std::vector<std::string>;
 static constexpr int MAX_FILE_BUFFER = 2'000'000'000;
 enum : int { FINFO_NOEXIST, FINFO_IS_FILE, FINFO_IS_DIR, FINFO_IS_LINK };
@@ -45,7 +45,7 @@ inline int biggest_int(const int a, const int b) {
 }
 } // namespace internal
 
-inline bytearr_t file_binread(const char *filename) {
+inline bytes file_binread(const char *filename) {
     // Try to open the file
     constexpr std::ios_base::openmode open_mode =
         std::ios::in | std::ios::binary | std::ios::ate;
@@ -53,7 +53,7 @@ inline bytearr_t file_binread(const char *filename) {
     if (!fst.is_open()) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Error opening file.\n";
-        return bytearr_t{};
+        return bytes{};
     }
     // Get size of the file, ignore <= 0 > max_size
     const auto filesz = static_cast<int64_t>(fst.tellg());
@@ -61,24 +61,24 @@ inline bytearr_t file_binread(const char *filename) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Invalid file size (" << filesz
                   << ")! Max = " << MAX_FILE_BUFFER << '\n';
-        return bytearr_t{};
+        return bytes{};
     }
     // Read entire file into a string buffer
     fst.seekg(std::ios::beg);
-    bytearr_t buf(static_cast<unsigned>(filesz));
+    bytes buf(static_cast<unsigned>(filesz));
     fst.read(reinterpret_cast<char *>(&buf[0]), filesz); // NOLINT
     fst.close();
     return buf;
 }
 
-inline bytearr_t file_binread(const char *filename, const int beg,
+inline bytes file_binread(const char *filename, const int beg,
                               const int end) {
     // Make sure end - beg > 0
     const auto bufsz = end - beg;
     if (bufsz <= 0) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Invalid range specified.\n";
-        return bytearr_t{};
+        return bytes{};
     }
     // Try to open the file
     constexpr std::ios_base::openmode open_mode =
@@ -87,25 +87,25 @@ inline bytearr_t file_binread(const char *filename, const int beg,
     if (!fst.is_open()) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Error opening file.\n";
-        return bytearr_t{};
+        return bytes{};
     }
     // Get size of the file, ignore <= 0 > max_size
     const auto filesz = static_cast<int64_t>(fst.tellg());
     if (filesz < end) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Invalid file size!" << '\n';
-        return bytearr_t{};
+        return bytes{};
     }
     // Read file range into a string buffer
     fst.seekg(std::ios::beg + beg);
-    bytearr_t buf(static_cast<unsigned>(bufsz));
+    bytes buf(static_cast<unsigned>(bufsz));
     fst.read(reinterpret_cast<char *>(&buf[0]), bufsz); // NOLINT
     fst.close();
     return buf;
 }
 
 template <class IntType>
-IntType read_int(const bytearr_t &buf, const unsigned offset,
+IntType read_int(const bytes &buf, const unsigned offset,
                  const bool bswap = false) {
     // Bounds checking
     constexpr auto sz = sizeof(IntType);
