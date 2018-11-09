@@ -10,6 +10,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <string>
 
 #ifdef _WIN32
 #include "utils/utf8conv_win32.h"
@@ -21,11 +22,13 @@
 
 namespace utils {
 
+// Typedefs
 using bytes = std::vector<uint8_t>;
-using list_t = std::vector<std::string>;
-static constexpr int MAX_FILE_BUFFER = 2'000'000'000;
-enum : int { FINFO_NOEXIST, FINFO_IS_FILE, FINFO_IS_DIR, FINFO_IS_LINK };
-enum : int { DL_SHOW_HIDDEN = 0x01, DL_RECURSE = 0x02 };
+using list = std::vector<std::string>;
+// Constants
+enum class file_info { no_exist, is_file, is_dir, is_link };
+enum class file_ext { unknown = -1, jpeg, tiff };
+
 namespace internal {
 inline bool is_crlf(const std::string &s) {
     const auto pos = s.find('\n');
@@ -46,6 +49,8 @@ inline int biggest_int(const int a, const int b) {
 } // namespace internal
 
 inline bytes file_binread(const char *filename) {
+    // The maximum size of a file we want to read
+    constexpr auto max_size = 2'000'000'000;
     // Try to open the file
     constexpr std::ios_base::openmode open_mode =
         std::ios::in | std::ios::binary | std::ios::ate;
@@ -57,10 +62,10 @@ inline bytes file_binread(const char *filename) {
     }
     // Get size of the file, ignore <= 0 > max_size
     const auto filesz = static_cast<int64_t>(fst.tellg());
-    if (filesz <= 0 || filesz > MAX_FILE_BUFFER) {
+    if (filesz <= 0 || filesz > max_size) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Invalid file size (" << filesz
-                  << ")! Max = " << MAX_FILE_BUFFER << '\n';
+                  << ")! Max = " << max_size << '\n';
         return bytes{};
     }
     // Read entire file into a string buffer
@@ -150,7 +155,7 @@ IntType read_int(const bytes &buf, const unsigned offset,
     return val;
 }
 
-inline void list_shuffle(list_t &list) {
+inline void list_shuffle(list &list) {
 #ifdef __MINGW32__
     thread_local static std::mt19937 rng{the_time()};
 #else
@@ -159,20 +164,20 @@ inline void list_shuffle(list_t &list) {
     std::shuffle(list.begin(), list.end(), rng);
 }
 
-inline void list_sort(list_t &list) { std::sort(list.begin(), list.end()); }
+inline void list_sort(list &list) { std::sort(list.begin(), list.end()); }
 
-inline void list_sort_naturally(list_t &list) {
+inline void list_sort_naturally(list &list) {
     std::sort(list.begin(), list.end(),
               [](const std::string &lhs, const std::string &rhs) {
                   return natcmp(lhs, rhs) < 0;
               });
 }
 
-inline void list_reverse(list_t &list) {
+inline void list_reverse(list &list) {
     std::reverse(list.begin(), list.end());
 }
 
-inline void list_print(const list_t &list) {
+inline void list_print(const list &list) {
     if (list.empty()) {
         std::cout << "List is empty!\n";
         return;
@@ -209,32 +214,32 @@ inline int get_file_info(const char *path) noexcept {
     return FINFO_IS_FILE;
 }
 #else
-inline int get_file_info(const char *path) noexcept {
+inline file_info get_file_info(const char *path) noexcept {
     // Check for null/empty
     if (path == nullptr) {
-        return FINFO_NOEXIST;
+        return file_info::no_exist;
     }
     const auto len = strlen(path);
     if (len <= 0) {
-        return FINFO_NOEXIST;
+        return file_info::no_exist;
     }
     // Stat the file, if this fails probably doesnt exist
     struct stat statbuf {};
     if (lstat(path, &statbuf) != 0) {
-        return FINFO_NOEXIST;
+        return file_info::no_exist;
     }
     // Check flags
     switch (statbuf.st_mode & static_cast<unsigned>(S_IFMT)) {
     case S_IFDIR:
-        return FINFO_IS_DIR;
+        return file_info::is_dir;
     case S_IFLNK:
-        return FINFO_IS_LINK;
+        return file_info::is_link;
     case S_IFREG:
-        return FINFO_IS_FILE;
+        return file_info::is_file;
     default:
         break;
     }
-    return FINFO_NOEXIST;
+    return file_info::no_exist;
 }
 #endif
 
@@ -242,39 +247,38 @@ inline void print_file_info(const char *path) {
     std::cout << "Getting file info -> " << path << '\n';
     switch (get_file_info(path)) {
     default:
-    case FINFO_NOEXIST:
+    case file_info::no_exist:
         std::cout << "  File does not exist.\n";
         break;
-    case FINFO_IS_FILE:
+    case file_info::is_file:
         std::cout << "  This is a file.\n";
         break;
-    case FINFO_IS_DIR:
+    case file_info::is_dir:
         std::cout << "  This is a folder.\n";
         break;
-    case FINFO_IS_LINK:
+    case file_info::is_link:
         std::cout << "  This is a symbolic link.\n";
         break;
     }
 }
 
 // Determine some "known" file extensions
-enum : int { EXT_UNKNOWN = -1, EXT_JPEG, EXT_TIFF };
-inline int get_file_ext(const char *filename) {
+inline file_ext get_file_ext(const char *filename) {
     const auto ext = strrchr(filename, '.');
     if (ext == nullptr) {
-        return EXT_UNKNOWN;
+        return file_ext::unknown;
     }
     // JPEG
     if ((strncasecmp(ext, ".jpg", 4) == 0) ||
         (strncasecmp(ext, ".jpeg", 5) == 0)) {
-        return EXT_JPEG;
+        return file_ext::jpeg;
     }
     // TIFF
     if ((strncasecmp(ext, ".tif", 4) == 0) ||
         (strncasecmp(ext, ".tiff", 5) == 0)) {
-        return EXT_TIFF;
+        return file_ext::tiff;
     }
-    return EXT_UNKNOWN;
+    return file_ext::unknown;
 }
 
 /*
@@ -382,9 +386,9 @@ inline dirhand_t get_dir_handle(const char *path) {
 }
 
 // Get's directory contents and returns a list of strings
-inline list_t list_dir(const char *path, const int opt = 0) {
+inline list list_dir(const char *path, const int opt = 0) {
     // Check for NULL
-    list_t list{};
+    list list{};
     if (path == nullptr) {
         std::cerr << "NULL path\n";
         return list;

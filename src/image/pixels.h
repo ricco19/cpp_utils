@@ -26,7 +26,6 @@ constexpr int pxfmt_components(const pxfmt fmt) {
     }
     return -1;
 }
-
 // Calculate the number of bytes of a given image size and format
 // Returns 0 on error
 inline unsigned px_bytes(const int w, const int h, const pxfmt fmt) {
@@ -70,6 +69,9 @@ class pixels {
     int height() const { return height_; }
     utils::bytes const &buf() const { return buf_; }
     bool is_valid() const { return is_valid_; }
+    // Public functions
+    void clear();
+    void convert_to(const pxfmt fmt);
 
   private:
     // Internal variables
@@ -78,10 +80,10 @@ class pixels {
     int height_{0};
     utils::bytes buf_{};
     bool is_valid_{false};
-
     // Internal functions
-    void clear();
     bool verify_buf();
+    pxfmt rgb_to_grey();
+    pxfmt rgba_to_grey();
 };
 
 // Resets the class back to empty/clean state
@@ -106,17 +108,22 @@ inline bool pixels::verify_buf() {
     return true;
 }
 
-/*
-inline int pixels::convert_to(const int fmt) {
+// Pixel conversion delgation
+inline void pixels::convert_to(const pxfmt fmt) {
     // No conversion necessary
     if (fmt == format_) {
-        return format_;
+        return;
     }
     switch (fmt) {
-    case PIXFMT_GREY:
+    case pxfmt::GRAY:
+    case pxfmt::GREY:
         switch (format_) {
-        case PIXFMT_RGB:
-            return pc_rgb_to_grey();
+        case pxfmt::RGB:
+            format_ = rgb_to_grey();
+            break;
+        case pxfmt::RGBA:
+            format_ = rgba_to_grey();
+            break;
         default:
             break;
         }
@@ -124,30 +131,46 @@ inline int pixels::convert_to(const int fmt) {
     default:
         break;
     }
-    // No conversion was done
-    return format_;
+    verify_buf();
 }
 
-inline int pixels::pc_rgb_to_grey() {
-    // Verify the current size of the buffer
-    const auto src_sz = static_cast<unsigned>(width_ * height_ * 3);
-    if (buf.size() != src_sz) {
-        return -1;
-    }
-    const int dst_sz = width_ * height_;
-    // Average out every 3 pixels
-    for (int i = 0; i < dst_sz; ++i) {
-        const int pos = i * 3;
-        buf[i] = (buf[pos] + buf[pos + 1] + buf[pos + 2]) / 3;
+// Pixel conversion -> RGB to GREYSCALE
+inline pxfmt pixels::rgb_to_grey() {
+    // Since this is encapsulated we are trusting the size of the buffer
+    constexpr auto dst_fmt = pxfmt::GREY;
+    const auto dst_sz = px_bytes(width_, height_, dst_fmt);
+    // RGB to Greyscale algorithm
+    for (unsigned i = 0; i < dst_sz; ++i) {
+        const auto offs = i * 3;
+        const auto r = static_cast<double>(buf_[offs]) * 0.2126;
+        const auto g = static_cast<double>(buf_[offs+1]) * 0.7152;
+        const auto b = static_cast<double>(buf_[offs+2]) * 0.0722;
+        buf_[i] = static_cast<uint8_t>(r + g + b);
     }
     // Trim the rest of the vector
-    buf.resize(dst_sz);
-    // Update the image variables
-    format_ = PIXFMT_GREY;
-    bytes_per_pixel_ = 1;
-    return format_;
+    buf_.resize(dst_sz);
+    return dst_fmt;
 }
-*/
+
+// Pixel conversion -> RGBA to GREYSCALE
+inline pxfmt pixels::rgba_to_grey() {
+    // Since this is encapsulated we are trusting the size of the buffer
+    constexpr auto dst_fmt = pxfmt::GREY;
+    const auto dst_sz = px_bytes(width_, height_, dst_fmt);
+    // RGBA to Greyscale algorithm
+    for (unsigned i = 0; i < dst_sz; ++i) {
+        const auto offs = i * 4;
+        const auto r = static_cast<double>(buf_[offs]) * 0.2126;
+        const auto g = static_cast<double>(buf_[offs+1]) * 0.7152;
+        const auto b = static_cast<double>(buf_[offs+2]) * 0.0722;
+        const auto lum = static_cast<double>(buf_[offs+3]) / 255.0;
+        buf_[i] = static_cast<uint8_t>((r + g + b) * lum);
+    }
+    // Trim the rest of the vector
+    buf_.resize(dst_sz);
+    return dst_fmt;
+}
+
 } // namespace image
 
 #endif
