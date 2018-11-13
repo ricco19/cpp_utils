@@ -7,7 +7,7 @@
 #include "utils/system.h"
 #include <cstring>
 
-namespace image {
+namespace utils {
 
 // Maximum dimension for width and height of an image
 constexpr int PIXELS_MAX_DIM = 10000;
@@ -24,6 +24,7 @@ constexpr int pxfmt_components(pixel_format fmt) {
         return 3;
     case pixel_format::rgba:
         return 4;
+    case pixel_format::invalid:
     default:
         break;
     }
@@ -62,14 +63,14 @@ class pixels {
         , buf_(pixels_get_size(w, h, fmt), 0)
         , is_valid_{verify_buf()} {}
     // Moves buffer and verifys
-    pixels(utils::bytes &&p, pixel_format fmt, int w, int h)
+    pixels(bytes_t &&p, pixel_format fmt, int w, int h)
         : format_{fmt}
         , width_{w}
         , height_{h}
         , buf_{p}
         , is_valid_{verify_buf()} {}
     // Copys buffer and verifys
-    pixels(const utils::bytes &p, pixel_format fmt, int w, int h)
+    pixels(const bytes_t &p, pixel_format fmt, int w, int h)
         : format_{fmt}
         , width_{w}
         , height_{h}
@@ -79,7 +80,7 @@ class pixels {
     pixel_format format() const { return format_; }
     int width() const { return width_; }
     int height() const { return height_; }
-    utils::bytes const &buf() const { return buf_; }
+    bytes_t const &buf() const { return buf_; }
     bool is_valid() const { return is_valid_; }
     // Public functions
     void clear();
@@ -90,8 +91,8 @@ class pixels {
     pixel_format format_{pixel_format::invalid};
     int width_{0};
     int height_{0};
+    bytes_t buf_{};
     bool is_valid_{false};
-    utils::bytes buf_{};
     // Internal functions
     bool verify_buf();
     pixel_format rgb_to_grey();
@@ -138,10 +139,16 @@ inline void pixels::convert_to(pixel_format fmt) {
         case pixel_format::rgba:
             format_ = rgba_to_grey();
             break;
+        case pixel_format::gray:
+        case pixel_format::grey:
+        case pixel_format::invalid:
         default:
             break;
         }
         break;
+    case pixel_format::rgb:
+    case pixel_format::rgba:
+    case pixel_format::invalid:
     default:
         break;
     }
@@ -185,6 +192,6 @@ inline pixel_format pixels::rgba_to_grey() {
     return dst_fmt;
 }
 
-} // namespace image
+} // namespace utils
 
 #endif

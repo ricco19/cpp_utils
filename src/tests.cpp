@@ -1,4 +1,4 @@
-#include "image/image.h"
+#include "utils/image.h"
 #include "utils/natcmp.h"
 #include "utils/quickrng.h"
 #include "utils/system.h"
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
         std::cout << "Nothing to do!\n";
         return 0;
     }
-    // utils::print_file_info(argv[1]);
+    utils::print_file_info(argv[1]);
     // const auto img = image::load_image{argv[1]};
     // if (img.is_image()) {
     //     std::cout << "  This is an image!\n";

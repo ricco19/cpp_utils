@@ -5,7 +5,7 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include "image/pixels.h"
+#include "utils/pixels.h"
 #include "utils/system.h"
 #include <cstdint>
 #include <iostream>
@@ -13,6 +13,16 @@
 #include <turbojpeg.h>
 #include <vector>
 
+namespace utils {
+
+class image {
+    int width{};
+    int height{};
+};
+
+} // namespace utils
+
+/*
 namespace image {
 
 // Internal namespace for invidual image librarys
@@ -228,5 +238,5 @@ class load_image {
     image::pixels pixels_{};
 };
 } // namespace image
-
+*/
 #endif

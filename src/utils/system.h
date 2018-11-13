@@ -10,7 +10,6 @@
 #include <string>
 #include <type_traits>
 #include <vector>
-#include <string>
 
 #ifdef _WIN32
 #include "utils/utf8conv_win32.h"
@@ -22,25 +21,25 @@
 
 namespace utils {
 
-// Typedefs
-using bytes = std::vector<uint8_t>;
-using list = std::vector<std::string>;
+// Using alias (typedefs) for common types
+using bytes_t = std::vector<uint8_t>;
+using list_t = std::vector<std::string>;
 // Constants
+constexpr auto MAX_FILE_SIZE = 512'000'000;
 enum class file_info { no_exist, is_file, is_dir, is_link };
 enum class file_ext { unknown = -1, jpeg, tiff };
 
+// Internal functions
 namespace internal {
 inline bool is_crlf(const std::string &s) {
     const auto pos = s.find('\n');
     return (pos > 0) && (s.at(pos - 1) == '\r');
 }
-
 inline bool has_bom(const std::string &s) {
     return (s.size() > 3) && (s[0] == '\xEF') && (s[1] == '\xBB') &&
            (s[2] == '\xBF');
 }
-
-inline int biggest_int(const int a, const int b) {
+inline int biggest_int(int a, int b) {
     if (a > b) {
         return a;
     }
@@ -48,9 +47,8 @@ inline int biggest_int(const int a, const int b) {
 }
 } // namespace internal
 
-inline bytes file_binread(const char *filename) {
-    // The maximum size of a file we want to read
-    constexpr auto max_size = 2'000'000'000;
+// Reads entire file into a memory buffer (vector)
+inline bytes_t file_binread(const char *filename) {
     // Try to open the file
     constexpr std::ios_base::openmode open_mode =
         std::ios::in | std::ios::binary | std::ios::ate;
@@ -58,32 +56,31 @@ inline bytes file_binread(const char *filename) {
     if (!fst.is_open()) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Error opening file.\n";
-        return bytes{};
+        return bytes_t{};
     }
     // Get size of the file, ignore <= 0 > max_size
     const auto filesz = static_cast<int64_t>(fst.tellg());
-    if (filesz <= 0 || filesz > max_size) {
+    if (filesz <= 0 || filesz > MAX_FILE_SIZE) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Invalid file size (" << filesz
-                  << ")! Max = " << max_size << '\n';
-        return bytes{};
+                  << ")! Max = " << MAX_FILE_SIZE << '\n';
+        return bytes_t{};
     }
     // Read entire file into a string buffer
     fst.seekg(std::ios::beg);
-    bytes buf(static_cast<unsigned>(filesz));
+    bytes_t buf(static_cast<unsigned>(filesz));
     fst.read(reinterpret_cast<char *>(&buf[0]), filesz); // NOLINT
     fst.close();
     return buf;
 }
-
-inline bytes file_binread(const char *filename, const int beg,
-                              const int end) {
+// Reads file into memory buffer (vector) with given offsets
+inline bytes_t file_binread(const char *filename, int beg, int end) {
     // Make sure end - beg > 0
     const auto bufsz = end - beg;
     if (bufsz <= 0) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Invalid range specified.\n";
-        return bytes{};
+        return bytes_t{};
     }
     // Try to open the file
     constexpr std::ios_base::openmode open_mode =
@@ -92,26 +89,26 @@ inline bytes file_binread(const char *filename, const int beg,
     if (!fst.is_open()) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Error opening file.\n";
-        return bytes{};
+        return bytes_t{};
     }
     // Get size of the file, ignore <= 0 > max_size
     const auto filesz = static_cast<int64_t>(fst.tellg());
     if (filesz < end) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Invalid file size!" << '\n';
-        return bytes{};
+        return bytes_t{};
     }
     // Read file range into a string buffer
     fst.seekg(std::ios::beg + beg);
-    bytes buf(static_cast<unsigned>(bufsz));
+    bytes_t buf(static_cast<unsigned>(bufsz));
     fst.read(reinterpret_cast<char *>(&buf[0]), bufsz); // NOLINT
     fst.close();
     return buf;
 }
 
+// Read binary data from a buffer into an integral type
 template <class IntType>
-IntType read_int(const bytes &buf, const unsigned offset,
-                 const bool bswap = false) {
+IntType read_int(const bytes_t &buf, unsigned offset, bool bswap = false) {
     // Bounds checking
     constexpr auto sz = sizeof(IntType);
     if (offset + sz > buf.size()) {
@@ -155,29 +152,24 @@ IntType read_int(const bytes &buf, const unsigned offset,
     return val;
 }
 
-inline void list_shuffle(list &list) {
-#ifdef __MINGW32__
+// Shuffles a list using a random seed based on time
+inline void list_shuffle(list_t &list) {
+#ifdef __MINGW32__ // mingws random_device is broken
     thread_local static std::mt19937 rng{the_time()};
 #else
     thread_local static std::mt19937 rng{std::random_device{}()};
 #endif
     std::shuffle(list.begin(), list.end(), rng);
 }
-
-inline void list_sort(list &list) { std::sort(list.begin(), list.end()); }
-
-inline void list_sort_naturally(list &list) {
+// Sorts a list "naturally", ie for a file list
+inline void list_sort_naturally(list_t &list) {
     std::sort(list.begin(), list.end(),
               [](const std::string &lhs, const std::string &rhs) {
                   return natcmp(lhs, rhs) < 0;
               });
 }
-
-inline void list_reverse(list &list) {
-    std::reverse(list.begin(), list.end());
-}
-
-inline void list_print(const list &list) {
+// Prints a list to console for debugging
+inline void list_print(const list_t &list) {
     if (list.empty()) {
         std::cout << "List is empty!\n";
         return;
@@ -190,28 +182,28 @@ inline void list_print(const list &list) {
     std::cout << "--- END OF LIST ---\n";
 }
 
+// Determines if a file exists, and what type of file it is
 #ifdef _WIN32
-inline int get_file_info(const char *path) noexcept {
+inline file_info get_file_info(const char *path) noexcept {
     // Check for null/empty
     if (path == nullptr) {
-        return FINFO_NOEXIST;
+        return file_info::no_exist;
     }
     const auto len = strlen(path);
     if (len <= 0) {
-        return FINFO_NOEXIST;
+        return file_info::no_exist;
     }
     // Try to get attributes
     const auto res = GetFileAttributesW(&widen(path)[0]);
     // Check for error, most likely from non-existance
     if (res == INVALID_FILE_ATTRIBUTES) {
-        std::cerr << GetLastError() << '\n';
-        return FINFO_NOEXIST;
+        return file_info::no_exist;
     }
     // In windows, if it's not a directory it's a file
     if ((res & static_cast<DWORD>(FILE_ATTRIBUTE_DIRECTORY)) != 0u) {
-        return FINFO_IS_DIR;
+        return file_info::is_dir;
     }
-    return FINFO_IS_FILE;
+    return file_info::is_file;
 }
 #else
 inline file_info get_file_info(const char *path) noexcept {
@@ -242,7 +234,6 @@ inline file_info get_file_info(const char *path) noexcept {
     return file_info::no_exist;
 }
 #endif
-
 inline void print_file_info(const char *path) {
     std::cout << "Getting file info -> " << path << '\n';
     switch (get_file_info(path)) {
