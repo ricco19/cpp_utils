@@ -15,10 +15,7 @@
 
 namespace utils {
 
-class image {
-    int width{};
-    int height{};
-};
+
 
 } // namespace utils
 

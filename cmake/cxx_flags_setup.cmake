@@ -1,14 +1,15 @@
 # Check for compiler type
-set(CXX_FLAGS_STYLE_GNU OFF)
+set(CXX_FLAGS_STYLE_GCC OFF)
+set(CXX_FLAGS_STYLE_CLANG OFF)
 set(CXX_FLAGS_STYLE_MSVC OFF)
 set(CXX_FLAGS_STYLE_CLANGCL OFF)
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    set(CXX_FLAGS_STYLE_GNU ON)
+    set(CXX_FLAGS_STYLE_GCC ON)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     if ("${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
         set(CXX_FLAGS_STYLE_CLANGCL ON)
     else ()
-        set(CXX_FLAGS_STYLE_GNU ON)
+        set(CXX_FLAGS_STYLE_CLANG ON)
     endif ()
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     set(CXX_FLAGS_STYLE_MSVC ON)
@@ -18,9 +19,9 @@ endif ()
 
 # Compiler flags
 target_compile_options(${PROJECT_NAME} PRIVATE
-    ## GCC/Clang Flags
-    $<$<BOOL:${CXX_FLAGS_STYLE_GNU}>:
-        # Debug settings
+    ## GCC Flags
+    $<$<BOOL:${CXX_FLAGS_STYLE_GCC}>:
+        # Debug only flags
         $<$<CONFIG:Debug>:
             "-g"
             "-D_FORTIFY_SOURCE=2"
@@ -33,14 +34,10 @@ target_compile_options(${PROJECT_NAME} PRIVATE
         >
         # Almost all warnings as errors
         "-Werror"
-        "-pedantic"
-        "-pedantic-errors"
         "-Wall"
         "-Wextra"
         # More warnings not included in all/extra
-        "-Wcast-align"
         "-Wcast-qual"
-        "-Wconversion"
         "-Wfloat-equal"
         "-Wformat-security"
         "-Wpointer-arith"
@@ -50,6 +47,63 @@ target_compile_options(${PROJECT_NAME} PRIVATE
         "-Wundef"
         "-Wunreachable-code"
         "-Wwrite-strings"
+        "-Wnon-virtual-dtor"
+        "-Wold-style-cast"
+        "-Wcast-align"
+        "-Wunused"
+        "-Woverloaded-virtual"
+        "-Wpedantic"
+        "-Wconversion"
+        "-Wsign-conversion"
+        "-Wmisleading-indentation"
+        "-Wduplicated-cond"
+        "-Wduplicated-branches"
+        "-Wlogical-op"
+        "-Wnull-dereference"
+        "-Wuseless-cast"
+        "-Wdouble-promotion"
+        "-Wformat=2"
+    >
+    # Clang Flags
+    $<$<BOOL:${CXX_FLAGS_STYLE_CLANG}>:
+        # Debug only flags
+        $<$<CONFIG:Debug>:
+            "-g"
+            "-D_FORTIFY_SOURCE=2"
+            "-D_GLIBCXX_ASSERTIONS"
+            "-fno-omit-frame-pointer"
+        >
+        # Always use O2 except for minimum size
+        $<$<NOT:$<CONFIG:MinSizeRel>>:
+            "-O2"
+        >
+        # Almost all warnings as errors
+        "-Werror"
+        "-Wall"
+        "-Wextra"
+        # More warnings not included in all/extra
+        "-Wcast-qual"
+        "-Wfloat-equal"
+        "-Wformat-security"
+        "-Wpointer-arith"
+        "-Wshadow"
+        "-Wswitch-default"
+        "-Wswitch-enum"
+        "-Wundef"
+        "-Wunreachable-code"
+        "-Wwrite-strings"
+        "-Wnon-virtual-dtor"
+        "-Wold-style-cast"
+        "-Wcast-align"
+        "-Wunused"
+        "-Woverloaded-virtual"
+        "-Wpedantic"
+        "-Wconversion"
+        "-Wsign-conversion"
+        "-Wnull-dereference"
+        "-Wdouble-promotion"
+        "-Wformat=2"
+        #"-Wlifetime" #clang 8.0+ only
     >
     ## MSVC flags
     $<$<BOOL:${CXX_FLAGS_STYLE_MSVC}>:

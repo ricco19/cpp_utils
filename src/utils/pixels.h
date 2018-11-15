@@ -48,7 +48,7 @@ inline unsigned pixels_get_size(int w, int h, pixel_format fmt) {
     if (h > PIXELS_MAX_DIM) {
         return 0;
     }
-    return static_cast<unsigned>(h * pixels_get_pitch(w, fmt));
+    return static_cast<unsigned>(h) * pixels_get_pitch(w, fmt);
 }
 
 class pixels {
@@ -70,11 +70,11 @@ class pixels {
         , buf_{p}
         , is_valid_{verify_buf()} {}
     // Copys buffer and verifys
-    pixels(const bytes_t &p, pixel_format fmt, int w, int h)
+    pixels(bytes_t p, pixel_format fmt, int w, int h)
         : format_{fmt}
         , width_{w}
         , height_{h}
-        , buf_{p}
+        , buf_{std::move(p)}
         , is_valid_{verify_buf()} {}
     // Simple getter functions
     pixel_format format() const { return format_; }

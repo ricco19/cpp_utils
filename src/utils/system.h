@@ -2,13 +2,11 @@
 #define SYSTEM_H
 
 #include "utils/natcmp.h"
-#include "utils/timer.h"
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <random>
-#include <string>
-#include <type_traits>
 #include <vector>
 
 #ifdef _WIN32
@@ -21,13 +19,17 @@
 
 namespace utils {
 
+auto pa = std::make_pair(0, "hello");
+
 // Using alias (typedefs) for common types
 using bytes_t = std::vector<uint8_t>;
 using list_t = std::vector<std::string>;
-// Constants
+// Maximum size of a file we want to operate on -> 512mb
 constexpr auto MAX_FILE_SIZE = 512'000'000;
+// Maximum length of an extension -> 8 bytes
+constexpr auto MAX_EXT_LEN = sizeof(int64_t);
 enum class file_info { no_exist, is_file, is_dir, is_link };
-enum class file_ext { unknown = -1, jpeg, tiff };
+enum class file_ext { unknown = -1, jpeg, tiff, gif, png, bmp };
 
 // Internal functions
 namespace internal {
@@ -46,6 +48,83 @@ inline int biggest_int(int a, int b) {
     return b;
 }
 } // namespace internal
+
+// A very simple toupper function that works on ascii chars a-z only
+constexpr int toupper_naive_ascii(const int ch) {
+    if ((ch >= 97) && (ch <= 122)) {
+        return ch - 32;
+    }
+    return ch;
+}
+
+// Converts first 8 bytes of a string to a 64 bit integer
+// Case insenstive, only works on ascii chars a-z
+constexpr int64_t sv_to_i64(std::string_view str) {
+    // Yikes: unrolled loop
+    switch (str.size()) {
+    case 0:
+        return 0;
+    case 1:
+        return static_cast<int64_t>(toupper_naive_ascii(str[0]));
+    case 2:
+        return static_cast<int64_t>(
+            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8));
+        break;
+    case 3:
+        return static_cast<int64_t>(
+            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16));
+        break;
+    case 4:
+        return static_cast<int64_t>(
+            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24));
+        break;
+    case 5:
+        return static_cast<int64_t>(
+            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[4])) << 32));
+        break;
+    case 6:
+        return static_cast<int64_t>(
+            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[4])) << 32) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[5])) << 40));
+        break;
+    case 7:
+        return static_cast<int64_t>(
+            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[4])) << 32) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[5])) << 40) |
+            (static_cast<uint64_t>(toupper_naive_ascii(str[6])) << 48));
+        break;
+    case 8:
+    default:
+        break;
+    }
+    return static_cast<int64_t>(
+        (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
+        (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
+        (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
+        (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24) |
+        (static_cast<uint64_t>(toupper_naive_ascii(str[4])) << 32) |
+        (static_cast<uint64_t>(toupper_naive_ascii(str[5])) << 40) |
+        (static_cast<uint64_t>(toupper_naive_ascii(str[6])) << 48) |
+        (static_cast<uint64_t>(toupper_naive_ascii(str[7])) << 56));
+}
 
 // Reads entire file into a memory buffer (vector)
 inline bytes_t file_binread(const char *filename) {
@@ -207,14 +286,6 @@ inline file_info get_file_info(const char *path) noexcept {
 }
 #else
 inline file_info get_file_info(const char *path) noexcept {
-    // Check for null/empty
-    if (path == nullptr) {
-        return file_info::no_exist;
-    }
-    const auto len = strlen(path);
-    if (len <= 0) {
-        return file_info::no_exist;
-    }
     // Stat the file, if this fails probably doesnt exist
     struct stat statbuf {};
     if (lstat(path, &statbuf) != 0) {
@@ -253,23 +324,66 @@ inline void print_file_info(const char *path) {
     }
 }
 
-// Determine some "known" file extensions
+// Case insensitive file extension checker
 inline file_ext get_file_ext(const char *filename) {
-    const auto ext = strrchr(filename, '.');
+    // "magic numbers", 8 bytes converted to 64 bit int
+    constexpr int64_t EXTTYPE_JPEG = sv_to_i64("JPEG");
+    constexpr int64_t EXTTYPE_JPG = sv_to_i64("JPG");
+    constexpr int64_t EXTTYPE_TIFF = sv_to_i64("TIFF");
+    constexpr int64_t EXTTYPE_TIF = sv_to_i64("TIF");
+    constexpr int64_t EXTTYPE_GIF = sv_to_i64("GIF");
+    constexpr int64_t EXTTYPE_PNG = sv_to_i64("PNG");
+    constexpr int64_t EXTTYPE_BMP = sv_to_i64("BMP");
+    // Extract "file extension" naively using strrchr
+    // Can't be NULL
+    const char *ext = strrchr(filename, '.');
     if (ext == nullptr) {
         return file_ext::unknown;
     }
-    // JPEG
-    if ((strncasecmp(ext, ".jpg", 4) == 0) ||
-        (strncasecmp(ext, ".jpeg", 5) == 0)) {
+    // Extract integer value from the string so we can switch it
+    const auto val = sv_to_i64(&ext[1]);
+    switch (val) {
+    case EXTTYPE_GIF:
+        return file_ext::gif;
+    case EXTTYPE_PNG:
+        return file_ext::png;
+    case EXTTYPE_BMP:
+        return file_ext::bmp;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
         return file_ext::jpeg;
-    }
-    // TIFF
-    if ((strncasecmp(ext, ".tif", 4) == 0) ||
-        (strncasecmp(ext, ".tiff", 5) == 0)) {
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
         return file_ext::tiff;
+    default:
+        break;
     }
     return file_ext::unknown;
+}
+
+void print_file_ext(file_ext ext) {
+    std::cout << "File extension -> ";
+    switch (ext) {
+    case file_ext::jpeg:
+        std::cout << "JPEG\n";
+        break;
+    case file_ext::tiff:
+        std::cout << "TIFF\n";
+        break;
+    case file_ext::gif:
+        std::cout << "GIF\n";
+        break;
+    case file_ext::png:
+        std::cout << "PNG\n";
+        break;
+    case file_ext::bmp:
+        std::cout << "BMP\n";
+        break;
+    case file_ext::unknown:
+    default:
+        std::cout << "UNKNOWN\n";
+        break;
+    }
 }
 
 /*

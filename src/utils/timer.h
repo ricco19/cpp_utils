@@ -71,32 +71,31 @@ class clock {
         using namespace std::literals::chrono_literals;
         const auto ns = nanos();
         if (ns < 1us) {
-            return std::string(std::to_string(ns.count()) + "ns");
+            return std::to_string(ns.count()) + "ns";
         }
         if (ns < 1ms) {
             const auto d = std::chrono::duration_cast<us_t>(ns);
-            return std::string(std::to_string(d.count()) + "us");
+            return std::to_string(d.count()) + "us";
         }
         if (ns < 1s) {
             const auto d = std::chrono::duration_cast<ms_t>(ns);
-            return std::string(std::to_string(d.count()) + "ms");
+            return std::to_string(d.count()) + "ms";
         }
         if (ns < 1min) {
             const auto d = std::chrono::duration_cast<sec_t>(ns);
-            return std::string(std::to_string(d.count()) + "s");
+            return std::to_string(d.count()) + "s";
         }
         if (ns < 1h) {
             const auto m = std::chrono::duration_cast<min_t>(ns);
             const auto s = std::chrono::duration_cast<sec_t>(ns % 1min);
-            return std::string(std::to_string(m.count()) + "m " +
-                               std::to_string(s.count()) + "s");
+            return std::to_string(m.count()) + "m " +
+                   std::to_string(s.count()) + "s";
         }
         const auto h = std::chrono::duration_cast<hour_t>(ns);
         const auto m = std::chrono::duration_cast<min_t>(ns % 1h);
         const auto s = std::chrono::duration_cast<sec_t>(ns % 1min);
-        return std::string(std::to_string(h.count()) + "h " +
-                           std::to_string(m.count()) + "m " +
-                           std::to_string(s.count()) + "s");
+        return std::to_string(h.count()) + "h " + std::to_string(m.count()) +
+               "m " + std::to_string(s.count()) + "s";
     }
 };
 
