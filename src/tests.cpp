@@ -4,7 +4,7 @@
 #include "utils/system.h"
 #include "utils/timer.h"
 #include <iostream>
-
+/*
 #include "benchmark/benchmark.h"
 
 static void BM_ext_strrchr(benchmark::State &s, const char *fn) {
@@ -47,8 +47,8 @@ int main(int argc, char **argv) {
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
 }
+*/
 
-/*
 int main(int argc, char *argv[]) {
 
     if (argc <= 1) {
@@ -65,10 +65,7 @@ int main(int argc, char *argv[]) {
         utils::get_file_ext_strrchr2(argv[1]),
         utils::get_file_ext_svflo(argv[1]),
         utils::get_file_ext_svrfind(argv[1]),
-        utils::get_file_ext_strrchr_ch(argv[1]),
-        utils::get_file_ext_strrchr2_ch(argv[1]),
-        utils::get_file_ext_svflo_ch(argv[1]),
-        utils::get_file_ext_svrfind_ch(argv[1])
+        utils::get_file_ext_manual(argv[1])
     };
 
     std::cout << argv[1] << '\n';
@@ -80,4 +77,3 @@ int main(int argc, char *argv[]) {
     return 0;
 
 }
-*/

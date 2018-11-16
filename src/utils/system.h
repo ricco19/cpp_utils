@@ -34,7 +34,7 @@ constexpr auto MAX_EXT_LEN = sizeof(int64_t);
 
 // File information enumeration and an ostream operator
 enum class file_info { no_exist, is_file, is_dir, is_link };
-std::ostream &operator << (std::ostream &os, file_info info) {
+std::ostream &operator<<(std::ostream &os, file_info info) {
     switch (info) {
     default:
     case file_info::no_exist:
@@ -55,7 +55,7 @@ std::ostream &operator << (std::ostream &os, file_info info) {
 
 // File extension enumeration and an ostream operator
 enum class file_ext { unknown = -1, jpeg, tiff, gif, png, bmp };
-std::ostream &operator << (std::ostream &os, file_ext ext) {
+std::ostream &operator<<(std::ostream &os, file_ext ext) {
     switch (ext) {
     default:
     case file_ext::unknown:
@@ -353,7 +353,6 @@ constexpr int64_t EXTTYPE_GIF = sv_to_i64("GIF");
 constexpr int64_t EXTTYPE_PNG = sv_to_i64("PNG");
 constexpr int64_t EXTTYPE_BMP = sv_to_i64("BMP");
 
-
 // Case insensitive file extension checker
 inline file_ext get_file_ext_strrchr(const char *filename) {
     // Extract "file extension" naively using strrchr
@@ -465,6 +464,37 @@ constexpr file_ext get_file_ext_svrfind(std::string_view filename) {
     return file_ext::unknown;
 }
 
+// Case insensitive file extension checker
+constexpr file_ext get_file_ext_manual(std::string_view filename) {
+    // Extract "file extension" naively using reverse char search
+    // There is a guaranteed null terminator, so + 1 is dirty but ok
+    auto dot_pos = filename.size();
+    for (; dot_pos > 0; --dot_pos) {
+        if (filename[dot_pos] == '.') {
+            dot_pos++;
+            break;
+        }
+    }
+    // Extract integer value from the string so we can switch it
+    const auto val = sv_to_i64(&filename[dot_pos]);
+    switch (val) {
+    case EXTTYPE_GIF:
+        return file_ext::gif;
+    case EXTTYPE_PNG:
+        return file_ext::png;
+    case EXTTYPE_BMP:
+        return file_ext::bmp;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
+        return file_ext::jpeg;
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
+        return file_ext::tiff;
+    default:
+        break;
+    }
+    return file_ext::unknown;
+}
 
 /*
 // Case insensitive file extension checker
