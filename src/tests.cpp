@@ -42,6 +42,34 @@ static void BM_ext_manual(benchmark::State &s, const char *fn) {
     }
 }
 
+static void BM_ext_strrchr_lim(benchmark::State &s, const char *fn) {
+    for (auto _ : s) {
+        benchmark::DoNotOptimize(utils::get_file_ext_strrchr_lim(fn));
+        benchmark::ClobberMemory();
+    }
+}
+
+static void BM_ext_strrchr2_lim(benchmark::State &s, const char *fn) {
+    for (auto _ : s) {
+        benchmark::DoNotOptimize(utils::get_file_ext_strrchr2_lim(fn));
+        benchmark::ClobberMemory();
+    }
+}
+
+static void BM_ext_svflo_lim(benchmark::State &s, const char *fn) {
+    for (auto _ : s) {
+        benchmark::DoNotOptimize(utils::get_file_ext_svflo_lim(fn));
+        benchmark::ClobberMemory();
+    }
+}
+
+static void BM_ext_svrfind_lim(benchmark::State &s, const char *fn) {
+    for (auto _ : s) {
+        benchmark::DoNotOptimize(utils::get_file_ext_svrfind_lim(fn));
+        benchmark::ClobberMemory();
+    }
+}
+
 static void BM_ext_manual_lim(benchmark::State &s, const char *fn) {
     for (auto _ : s) {
         benchmark::DoNotOptimize(utils::get_file_ext_manual_lim(fn));
@@ -59,7 +87,13 @@ int main(int argc, char **argv) {
     benchmark::RegisterBenchmark("find_first_of()", &BM_ext_svflo, argv[1]);
     benchmark::RegisterBenchmark("rfind()", &BM_ext_svrfind, argv[1]);
     benchmark::RegisterBenchmark("loop", &BM_ext_manual, argv[1]);
-    benchmark::RegisterBenchmark("loop limited", &BM_ext_manual_lim, argv[1]);
+
+    benchmark::RegisterBenchmark("strrchr() lim", &BM_ext_strrchr_lim, argv[1]);
+    benchmark::RegisterBenchmark("strrchr() v2 lim", &BM_ext_strrchr2_lim, argv[1]);
+    benchmark::RegisterBenchmark("find_first_of() lim", &BM_ext_svflo_lim, argv[1]);
+    benchmark::RegisterBenchmark("rfind() lim", &BM_ext_svrfind_lim, argv[1]);
+    benchmark::RegisterBenchmark("loop lim", &BM_ext_manual_lim, argv[1]);
+
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
 }
@@ -81,7 +115,12 @@ int main(int argc, char *argv[]) {
         utils::get_file_ext_strrchr2(argv[1]),
         utils::get_file_ext_svflo(argv[1]),
         utils::get_file_ext_svrfind(argv[1]),
-        utils::get_file_ext_manual(argv[1])
+        utils::get_file_ext_manual(argv[1]),
+        utils::get_file_ext_strrchr_lim(argv[1]),
+        utils::get_file_ext_strrchr2_lim(argv[1]),
+        utils::get_file_ext_svflo_lim(argv[1]),
+        utils::get_file_ext_svrfind_lim(argv[1]),
+        utils::get_file_ext_manual_lim(argv[1])
     };
 
     std::cout << argv[1] << '\n';

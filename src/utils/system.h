@@ -496,6 +496,143 @@ constexpr file_ext get_file_ext_manual(std::string_view filename) {
     return file_ext::unknown;
 }
 
+
+
+
+
+// Case insensitive file extension checker
+inline file_ext get_file_ext_strrchr_lim(const char *filename) {
+    // Extract "file extension" naively using strrchr
+    // Can't be NULL
+    const auto len = strlen(filename);
+    auto start_pos = 0ULL;
+    if (strlen(filename) > MAX_EXT_LEN) {
+        start_pos = len - MAX_EXT_LEN;
+    }
+    const char *ext = strrchr(&filename[start_pos], '.');
+    if (ext == nullptr) {
+        return file_ext::unknown;
+    }
+    // Extract integer value from the string so we can switch it
+    const auto val = sv_to_i64(&ext[1]);
+    switch (val) {
+    case EXTTYPE_GIF:
+        return file_ext::gif;
+    case EXTTYPE_PNG:
+        return file_ext::png;
+    case EXTTYPE_BMP:
+        return file_ext::bmp;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
+        return file_ext::jpeg;
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
+        return file_ext::tiff;
+    default:
+        break;
+    }
+    return file_ext::unknown;
+}
+
+// Case insensitive file extension checker
+inline file_ext get_file_ext_strrchr2_lim(const char *filename) {
+    // Extract "file extension" naively using strrchr
+    // Can't be NULL
+    const auto len = strlen(filename);
+    auto start_pos = 0ULL;
+    if (strlen(filename) > MAX_EXT_LEN) {
+        start_pos = len - MAX_EXT_LEN;
+    }
+    const char *ext = strrchr(&filename[start_pos], '.');
+    if (ext == nullptr) {
+        return file_ext::unknown;
+    }
+    std::string_view sv{&ext[1]};
+    // Extract integer value from the string so we can switch it
+    const auto val = sv_to_i64(sv);
+    switch (val) {
+    case EXTTYPE_GIF:
+        return file_ext::gif;
+    case EXTTYPE_PNG:
+        return file_ext::png;
+    case EXTTYPE_BMP:
+        return file_ext::bmp;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
+        return file_ext::jpeg;
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
+        return file_ext::tiff;
+    default:
+        break;
+    }
+    return file_ext::unknown;
+}
+
+// Case insensitive file extension checker
+constexpr file_ext get_file_ext_svflo_lim(std::string_view filename) {
+    // Extract "file extension" naively using reverse char search
+    // There is a guaranteed null terminator, so + 1 is dirty but ok
+    const auto len = filename.size();
+    auto start_pos = 0ULL;
+    if (len > MAX_EXT_LEN) {
+        start_pos = len - 8;
+    }
+    std::string_view sv2{&filename[start_pos]};
+    const auto pos = sv2.find_last_of('.') + 1;
+    // Extract integer value from the string so we can switch it
+    const auto val = sv_to_i64(&filename[pos]);
+    switch (val) {
+    case EXTTYPE_GIF:
+        return file_ext::gif;
+    case EXTTYPE_PNG:
+        return file_ext::png;
+    case EXTTYPE_BMP:
+        return file_ext::bmp;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
+        return file_ext::jpeg;
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
+        return file_ext::tiff;
+    default:
+        break;
+    }
+    return file_ext::unknown;
+}
+
+// Case insensitive file extension checker
+constexpr file_ext get_file_ext_svrfind_lim(std::string_view filename) {
+    // Extract "file extension" naively using reverse char search
+    // There is a guaranteed null terminator, so + 1 is dirty but ok
+    const auto len = filename.size();
+    auto start_pos = 0ULL;
+    if (len > MAX_EXT_LEN) {
+        start_pos = len - 8;
+    }
+    std::string_view sv2{&filename[start_pos]};
+    const auto pos = sv2.rfind('.') + 1;
+    // Extract integer value from the string so we can switch it
+    const auto val = sv_to_i64(&filename[pos]);
+    switch (val) {
+    case EXTTYPE_GIF:
+        return file_ext::gif;
+    case EXTTYPE_PNG:
+        return file_ext::png;
+    case EXTTYPE_BMP:
+        return file_ext::bmp;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
+        return file_ext::jpeg;
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
+        return file_ext::tiff;
+    default:
+        break;
+    }
+    return file_ext::unknown;
+}
+
 // Case insensitive file extension checker
 constexpr file_ext get_file_ext_manual_lim(std::string_view filename) {
     // Extract "file extension" naively using reverse char search
