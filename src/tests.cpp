@@ -14,9 +14,16 @@ static void BM_ext(benchmark::State &s, const char *fn) {
     }
 }
 
-static void BM_extce(benchmark::State &s, const char *fn) {
+static void BM_ext_flo(benchmark::State &s, const char *fn) {
     for (auto _ : s) {
         benchmark::DoNotOptimize(utils::get_file_extce(fn));
+        benchmark::ClobberMemory();
+    }
+}
+
+static void BM_ext_rfind(benchmark::State &s, const char *fn) {
+    for (auto _ : s) {
+        benchmark::DoNotOptimize(utils::get_file_extce2(fn));
         benchmark::ClobberMemory();
     }
 }
@@ -27,9 +34,8 @@ int main(int argc, char **argv) {
         return 0;
     }
     benchmark::RegisterBenchmark("STRRCHR", &BM_ext, argv[1]);
-    benchmark::RegisterBenchmark("SV CE", &BM_extce, argv[1]);
-    benchmark::RegisterBenchmark("STRRCHR 2", &BM_ext, argv[1]);
-    benchmark::RegisterBenchmark("SV CE 2", &BM_extce, argv[1]);
+    benchmark::RegisterBenchmark("SV FLO", &BM_ext_flo, argv[1]);
+    benchmark::RegisterBenchmark("SV RFIND", &BM_ext_rfind, argv[1]);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
 }

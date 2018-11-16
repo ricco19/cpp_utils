@@ -415,6 +415,40 @@ constexpr file_ext get_file_extce(std::string_view filename) {
     return file_ext::unknown;
 }
 
+// Case insensitive file extension checker
+constexpr file_ext get_file_extce2(std::string_view filename) {
+    // "magic numbers", 8 bytes converted to 64 bit int
+    constexpr int64_t EXTTYPE_JPEG = sv_to_i64("JPEG");
+    constexpr int64_t EXTTYPE_JPG = sv_to_i64("JPG");
+    constexpr int64_t EXTTYPE_TIFF = sv_to_i64("TIFF");
+    constexpr int64_t EXTTYPE_TIF = sv_to_i64("TIF");
+    constexpr int64_t EXTTYPE_GIF = sv_to_i64("GIF");
+    constexpr int64_t EXTTYPE_PNG = sv_to_i64("PNG");
+    constexpr int64_t EXTTYPE_BMP = sv_to_i64("BMP");
+    // Extract "file extension" naively using reverse char search
+    // There is a guaranteed null terminator, so + 1 is dirty but ok
+    const auto pos = filename.rfind('.');
+    // Extract integer value from the string so we can switch it
+    const auto val = sv_to_i64(&filename[pos]);
+    switch (val) {
+    case EXTTYPE_GIF:
+        return file_ext::gif;
+    case EXTTYPE_PNG:
+        return file_ext::png;
+    case EXTTYPE_BMP:
+        return file_ext::bmp;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
+        return file_ext::jpeg;
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
+        return file_ext::tiff;
+    default:
+        break;
+    }
+    return file_ext::unknown;
+}
+
 /*
 ///////////////////////////////
 // Windows directory listing //
