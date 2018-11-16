@@ -4,7 +4,7 @@
 #include "utils/system.h"
 #include "utils/timer.h"
 #include <iostream>
-/*
+
 #include "benchmark/benchmark.h"
 
 static void BM_ext_strrchr(benchmark::State &s, const char *fn) {
@@ -35,20 +35,36 @@ static void BM_ext_svrfind(benchmark::State &s, const char *fn) {
     }
 }
 
+static void BM_ext_manual(benchmark::State &s, const char *fn) {
+    for (auto _ : s) {
+        benchmark::DoNotOptimize(utils::get_file_ext_manual(fn));
+        benchmark::ClobberMemory();
+    }
+}
+
+static void BM_ext_manual_lim(benchmark::State &s, const char *fn) {
+    for (auto _ : s) {
+        benchmark::DoNotOptimize(utils::get_file_ext_manual(fn));
+        benchmark::ClobberMemory();
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc <= 1) {
         std::cout << "Nothing to do!\n";
         return 0;
     }
-    benchmark::RegisterBenchmark("STRRCHR", &BM_ext_strrchr, argv[1]);
-    benchmark::RegisterBenchmark("STRRCHR2", &BM_ext_strrchr2, argv[1]);
-    benchmark::RegisterBenchmark("SV FLO", &BM_ext_svflo, argv[1]);
-    benchmark::RegisterBenchmark("SV RFIND", &BM_ext_svrfind, argv[1]);
+    benchmark::RegisterBenchmark("strrchr()", &BM_ext_strrchr, argv[1]);
+    benchmark::RegisterBenchmark("strrchr() v2", &BM_ext_strrchr2, argv[1]);
+    benchmark::RegisterBenchmark("find_first_of()", &BM_ext_svflo, argv[1]);
+    benchmark::RegisterBenchmark("rfind()", &BM_ext_svrfind, argv[1]);
+    benchmark::RegisterBenchmark("loop", &BM_ext_manual, argv[1]);
+    benchmark::RegisterBenchmark("loop limited", &BM_ext_manual_lim, argv[1]);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
 }
-*/
 
+/*
 int main(int argc, char *argv[]) {
 
     if (argc <= 1) {
@@ -77,3 +93,4 @@ int main(int argc, char *argv[]) {
     return 0;
 
 }
+*/

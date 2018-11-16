@@ -496,6 +496,43 @@ constexpr file_ext get_file_ext_manual(std::string_view filename) {
     return file_ext::unknown;
 }
 
+// Case insensitive file extension checker
+constexpr file_ext get_file_ext_manual_lim(std::string_view filename) {
+    // Extract "file extension" naively using reverse char search
+    // There is a guaranteed null terminator, so + 1 is dirty but ok
+    auto dot_pos = filename.size();
+    unsigned ch = 0;
+    for (; dot_pos > 0; --dot_pos) {
+        if (ch >= MAX_EXT_LEN) {
+            break;
+        }
+        if (filename[dot_pos] == '.') {
+            dot_pos++;
+            break;
+        }
+        ch++;
+    }
+    // Extract integer value from the string so we can switch it
+    const auto val = sv_to_i64(&filename[dot_pos]);
+    switch (val) {
+    case EXTTYPE_GIF:
+        return file_ext::gif;
+    case EXTTYPE_PNG:
+        return file_ext::png;
+    case EXTTYPE_BMP:
+        return file_ext::bmp;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
+        return file_ext::jpeg;
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
+        return file_ext::tiff;
+    default:
+        break;
+    }
+    return file_ext::unknown;
+}
+
 /*
 // Case insensitive file extension checker
 inline file_ext get_file_ext_strrchr_ch(const char *filename) {
