@@ -27,10 +27,11 @@ target_compile_options(${PROJECT_NAME} PRIVATE
             "-D_FORTIFY_SOURCE=2"
             "-D_GLIBCXX_ASSERTIONS"
             "-fno-omit-frame-pointer"
-        >
-        # Always use O2 except for minimum size
-        $<$<NOT:$<CONFIG:MinSizeRel>>:
             "-O2"
+        >
+        # Release flags
+        $<$<CONFIG:Release>:
+            "-O3"
         >
         # Almost all warnings as errors
         "-Werror"
