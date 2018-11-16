@@ -44,7 +44,7 @@ static void BM_ext_manual(benchmark::State &s, const char *fn) {
 
 static void BM_ext_manual_lim(benchmark::State &s, const char *fn) {
     for (auto _ : s) {
-        benchmark::DoNotOptimize(utils::get_file_ext_manual(fn));
+        benchmark::DoNotOptimize(utils::get_file_ext_manual_lim(fn));
         benchmark::ClobberMemory();
     }
 }
