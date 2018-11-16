@@ -9,6 +9,9 @@
 #include <random>
 #include <vector>
 
+#ifdef __MINGW32__
+#include "utils/timer.h"
+#endif
 #ifdef _WIN32
 #include "utils/utf8conv_win32.h"
 #include <windows.h>
@@ -19,17 +22,63 @@
 
 namespace utils {
 
-auto pa = std::make_pair(0, "hello");
-
 // Using alias (typedefs) for common types
 using bytes_t = std::vector<uint8_t>;
 using list_t = std::vector<std::string>;
+
 // Maximum size of a file we want to operate on -> 512mb
 constexpr auto MAX_FILE_SIZE = 512'000'000;
+
 // Maximum length of an extension -> 8 bytes
 constexpr auto MAX_EXT_LEN = sizeof(int64_t);
+
+// File information enumeration and an ostream operator
 enum class file_info { no_exist, is_file, is_dir, is_link };
+std::ostream &operator << (std::ostream &os, file_info info) {
+    switch (info) {
+    default:
+    case file_info::no_exist:
+        os << "Unknown/Doesn't Exist";
+        break;
+    case file_info::is_file:
+        os << "File";
+        break;
+    case file_info::is_dir:
+        os << "Directory";
+        break;
+    case file_info::is_link:
+        os << "Symbolic Link";
+        break;
+    }
+    return os;
+}
+
+// File extension enumeration and an ostream operator
 enum class file_ext { unknown = -1, jpeg, tiff, gif, png, bmp };
+std::ostream &operator << (std::ostream &os, file_ext ext) {
+    switch (ext) {
+    default:
+    case file_ext::unknown:
+        os << "Unknown";
+        break;
+    case file_ext::jpeg:
+        os << "JPEG Image";
+        break;
+    case file_ext::tiff:
+        os << "TIFF Image";
+        break;
+    case file_ext::gif:
+        os << "GIF Image";
+        break;
+    case file_ext::png:
+        os << "PNG Image";
+        break;
+    case file_ext::bmp:
+        os << "BMP Image";
+        break;
+    }
+    return os;
+}
 
 // Internal functions
 namespace internal {
@@ -152,6 +201,7 @@ inline bytes_t file_binread(const char *filename) {
     fst.close();
     return buf;
 }
+
 // Reads file into memory buffer (vector) with given offsets
 inline bytes_t file_binread(const char *filename, int beg, int end) {
     // Make sure end - beg > 0
@@ -240,25 +290,13 @@ inline void list_shuffle(list_t &list) {
 #endif
     std::shuffle(list.begin(), list.end(), rng);
 }
+
 // Sorts a list "naturally", ie for a file list
 inline void list_sort_naturally(list_t &list) {
     std::sort(list.begin(), list.end(),
               [](const std::string &lhs, const std::string &rhs) {
                   return natcmp(lhs, rhs) < 0;
               });
-}
-// Prints a list to console for debugging
-inline void list_print(const list_t &list) {
-    if (list.empty()) {
-        std::cout << "List is empty!\n";
-        return;
-    }
-    std::cout << "Printing list -> " << list.size() << " entries.\n";
-    std::cout << "--- START OF LIST ---\n";
-    for (const auto &s : list) {
-        std::cout << s.size() << " : " << s << '\n';
-    }
-    std::cout << "--- END OF LIST ---\n";
 }
 
 // Determines if a file exists, and what type of file it is
@@ -305,24 +343,6 @@ inline file_info get_file_info(const char *path) noexcept {
     return file_info::no_exist;
 }
 #endif
-inline void print_file_info(const char *path) {
-    std::cout << "Getting file info -> " << path << '\n';
-    switch (get_file_info(path)) {
-    default:
-    case file_info::no_exist:
-        std::cout << "  File does not exist.\n";
-        break;
-    case file_info::is_file:
-        std::cout << "  This is a file.\n";
-        break;
-    case file_info::is_dir:
-        std::cout << "  This is a folder.\n";
-        break;
-    case file_info::is_link:
-        std::cout << "  This is a symbolic link.\n";
-        break;
-    }
-}
 
 // Case insensitive file extension checker
 inline file_ext get_file_ext(const char *filename) {
@@ -361,29 +381,38 @@ inline file_ext get_file_ext(const char *filename) {
     return file_ext::unknown;
 }
 
-void print_file_ext(file_ext ext) {
-    std::cout << "File extension -> ";
-    switch (ext) {
-    case file_ext::jpeg:
-        std::cout << "JPEG\n";
-        break;
-    case file_ext::tiff:
-        std::cout << "TIFF\n";
-        break;
-    case file_ext::gif:
-        std::cout << "GIF\n";
-        break;
-    case file_ext::png:
-        std::cout << "PNG\n";
-        break;
-    case file_ext::bmp:
-        std::cout << "BMP\n";
-        break;
-    case file_ext::unknown:
+// Case insensitive file extension checker
+constexpr file_ext get_file_extce(std::string_view filename) {
+    // "magic numbers", 8 bytes converted to 64 bit int
+    constexpr int64_t EXTTYPE_JPEG = sv_to_i64("JPEG");
+    constexpr int64_t EXTTYPE_JPG = sv_to_i64("JPG");
+    constexpr int64_t EXTTYPE_TIFF = sv_to_i64("TIFF");
+    constexpr int64_t EXTTYPE_TIF = sv_to_i64("TIF");
+    constexpr int64_t EXTTYPE_GIF = sv_to_i64("GIF");
+    constexpr int64_t EXTTYPE_PNG = sv_to_i64("PNG");
+    constexpr int64_t EXTTYPE_BMP = sv_to_i64("BMP");
+    // Extract "file extension" naively using reverse char search
+    // There is a guaranteed null terminator, so + 1 is dirty but ok
+    const auto pos = filename.find_last_of('.') + 1;
+    // Extract integer value from the string so we can switch it
+    const auto val = sv_to_i64(&filename[pos]);
+    switch (val) {
+    case EXTTYPE_GIF:
+        return file_ext::gif;
+    case EXTTYPE_PNG:
+        return file_ext::png;
+    case EXTTYPE_BMP:
+        return file_ext::bmp;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
+        return file_ext::jpeg;
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
+        return file_ext::tiff;
     default:
-        std::cout << "UNKNOWN\n";
         break;
     }
+    return file_ext::unknown;
 }
 
 /*
