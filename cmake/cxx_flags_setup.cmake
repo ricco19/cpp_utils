@@ -1,129 +1,68 @@
-# Check for compiler type
-set(CXX_FLAGS_STYLE_GCC OFF)
-set(CXX_FLAGS_STYLE_CLANG OFF)
-set(CXX_FLAGS_STYLE_MSVC OFF)
-set(CXX_FLAGS_STYLE_CLANGCL OFF)
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    set(CXX_FLAGS_STYLE_GCC ON)
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    if ("${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
-        set(CXX_FLAGS_STYLE_CLANGCL ON)
-    else ()
-        set(CXX_FLAGS_STYLE_CLANG ON)
-    endif ()
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    set(CXX_FLAGS_STYLE_MSVC ON)
-else ()
-    message(FATAL_ERROR "Unsupported compiler!")
-endif ()
+# MSVC flags. Multi-config generator so we only need one setup
+if(CMCC_IS_MSVC)
+  target_compile_options(
+    ${PROJECT_NAME}
+    PRIVATE "/Wx /permissive /W4"
+            "/w14242 /w14254 /w14263 /w14265 /w14287 /we4289"
+            "/w14296 /w14311 /w14545 /w14546 /w14547 /w14549"
+            "/w14555 /w14619 /w14640 /w14826 /w14905 /w14906 /w14928")
+endif()
 
-# Compiler flags
-target_compile_options(${PROJECT_NAME} PRIVATE
-    ## GCC Flags
-    $<$<BOOL:${CXX_FLAGS_STYLE_GCC}>:
-        # Debug only flags
-        $<$<CONFIG:Debug>:
-            "-g"
-            "-D_FORTIFY_SOURCE=2"
-            "-D_GLIBCXX_ASSERTIONS"
-            "-fno-omit-frame-pointer"
-            "-O2"
-        >
-        # Release flags
-        $<$<CONFIG:Release>:
-            "-O3"
-        >
-        # Almost all warnings as errors
-        "-Werror"
-        "-Wall"
-        "-Wextra"
-        # More warnings not included in all/extra
-        "-Wcast-qual"
-        "-Wfloat-equal"
-        "-Wformat-security"
-        "-Wpointer-arith"
-        "-Wshadow"
-        "-Wswitch-default"
-        "-Wswitch-enum"
-        "-Wundef"
-        "-Wunreachable-code"
-        "-Wwrite-strings"
-        "-Wnon-virtual-dtor"
-        "-Wold-style-cast"
-        "-Wcast-align"
-        "-Wunused"
-        "-Woverloaded-virtual"
-        "-Wpedantic"
-        "-Wconversion"
-        "-Wsign-conversion"
-        "-Wmisleading-indentation"
-        "-Wduplicated-cond"
-        "-Wduplicated-branches"
-        "-Wlogical-op"
-        "-Wnull-dereference"
-        "-Wuseless-cast"
-        "-Wdouble-promotion"
-        "-Wformat=2"
-    >
-    # Clang Flags
-    $<$<BOOL:${CXX_FLAGS_STYLE_CLANG}>:
-        # Debug only flags
-        $<$<CONFIG:Debug>:
-            "-g"
-            "-D_FORTIFY_SOURCE=2"
-            "-D_GLIBCXX_ASSERTIONS"
-            "-fno-omit-frame-pointer"
-        >
-        # Always use O2 except for minimum size
-        $<$<NOT:$<CONFIG:MinSizeRel>>:
-            "-O2"
-        >
-        # Almost all warnings as errors
-        "-Werror"
-        "-Wall"
-        "-Wextra"
-        # More warnings not included in all/extra
-        "-Wcast-qual"
-        "-Wfloat-equal"
-        "-Wformat-security"
-        "-Wpointer-arith"
-        "-Wshadow"
-        "-Wswitch-default"
-        "-Wswitch-enum"
-        "-Wundef"
-        "-Wunreachable-code"
-        "-Wwrite-strings"
-        "-Wnon-virtual-dtor"
-        "-Wold-style-cast"
-        "-Wcast-align"
-        "-Wunused"
-        "-Woverloaded-virtual"
-        "-Wpedantic"
-        "-Wconversion"
-        "-Wsign-conversion"
-        "-Wnull-dereference"
-        "-Wdouble-promotion"
-        "-Wformat=2"
-        #"-Wlifetime" #clang 8.0+ only
-    >
-    ## MSVC flags
-    $<$<BOOL:${CXX_FLAGS_STYLE_MSVC}>:
-        # Optimization
-        #"/O3"
-        # Lots of warnings as errors, /Wall just doesnt work
-        "/WX"
-        "/W4"
-    >
-    ## CLANG-CL flags
-    $<$<BOOL:${CXX_FLAGS_STYLE_CLANGCL}>:
-        # Optimization
-        #"/O3"
-        # Almost all warnings as errors
-        "/WX"
-        "/Wall"
-        # Disable some warnings
-        "-Wno-unused-command-line-argument"
-        "-Wno-c++98-compat"
-        "-Wno-nonportable-system-include-path"
-    >
-)
+# CLANG-CL flags (WIP)
+if(CMCC_IS_CLANG-CL)
+  target_compile_options(
+    ${PROJECT_NAME}
+    PRIVATE "/WX /Wall" "-Wno-unused-command-line-argument -Wno-c++98-compat"
+            "-Wno-nonportable-system-include-path")
+endif()
+
+# GCC flags
+if(CMCC_IS_GCC)
+  # Debug flags
+  target_compile_options(${PROJECT_NAME}
+                         PUBLIC $<$<CONFIG:Debug>:-g
+                                -D_FORTIFY_SOURCE=2
+                                -D_GLIBCXX_ASSERTIONS
+                                -fno-omit-frame-pointer>)
+  # Flags that we use no matter what the build type is
+  target_compile_options(${PROJECT_NAME}
+                         PUBLIC -O3
+                                -Werror
+                                -Wall
+                                -Wextra
+                                -Wcast-qual
+                                -Wfloat-equal
+                                -Wformat-security
+                                -Wpointer-arith
+                                -Wshadow
+                                -Wswitch-default
+                                -Wswitch-enum
+                                -Wundef
+                                -Wunreachable-code
+                                -Wwrite-strings
+                                -Wnon-virtual-dtor
+                                -Wold-style-cast
+                                -Wcast-align
+                                -Wunused
+                                -Woverloaded-virtual
+                                -Wpedantic
+                                -Wconversion
+                                -Wsign-conversion
+                                -Wmisleading-indentation
+                                -Wduplicated-cond
+                                -Wduplicated-branches
+                                -Wlogical-op
+                                -Wnull-dereference
+                                -Wuseless-cast
+                                -Wdouble-promotion
+                                -Wformat=2)
+  # Minimum size, overwrite O3
+  target_compile_options(${PROJECT_NAME} PUBLIC $<$<CONFIG:MinSizeRel>:-Os>)
+  # Minimum size with debug info
+  target_compile_options(${PROJECT_NAME}
+                         PUBLIC $<$<CONFIG:RelWithDebInfo>:-Os
+                                -g
+                                -D_FORTIFY_SOURCE=2
+                                -D_GLIBCXX_ASSERTIONS
+                                -fno-omit-frame-pointer>)
+endif()

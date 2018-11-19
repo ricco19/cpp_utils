@@ -58,26 +58,26 @@ constexpr unsigned pixels_size(int w, int h, pixel_format fmt) noexcept {
 }
 
 // Pixels class, holds pixel buffer and conversion functions
-class pixels {
+class pixel_data {
   public:
     // Default construct - empty buffer and values
-    pixels() = default;
+    pixel_data() = default;
     // Format, width, height - allocates buffer
-    pixels(pixel_format fmt, int w, int h)
+    pixel_data(pixel_format fmt, int w, int h)
         : format_{fmt}
         , width_{w}
         , height_{h}
         , buf_(pixels_size(w, h, fmt), 0)
         , is_valid_{verify_buf()} {}
     // Moves buffer and verifys
-    pixels(bytes_t &&p, pixel_format fmt, int w, int h)
+    pixel_data(bytes_t &&p, pixel_format fmt, int w, int h)
         : format_{fmt}
         , width_{w}
         , height_{h}
         , buf_{p}
         , is_valid_{verify_buf()} {}
     // Copys buffer and verifys
-    pixels(bytes_t p, pixel_format fmt, int w, int h)
+    pixel_data(bytes_t p, pixel_format fmt, int w, int h)
         : format_{fmt}
         , width_{w}
         , height_{h}
@@ -107,7 +107,7 @@ class pixels {
 };
 
 // Resets the class back to empty/clean state
-inline void pixels::clear() {
+inline void pixel_data::clear() {
     format_ = pixel_format::invalid;
     width_ = 0;
     height_ = 0;
@@ -116,7 +116,7 @@ inline void pixels::clear() {
 }
 
 // Verifies the size of the buffer
-inline bool pixels::verify_buf() {
+inline bool pixel_data::verify_buf() {
     if (buf_.empty()) {
         clear();
         return false;
@@ -129,7 +129,7 @@ inline bool pixels::verify_buf() {
 }
 
 // Pixel conversion delgation
-inline void pixels::convert_to(pixel_format fmt) {
+inline void pixel_data::convert_to(pixel_format fmt) {
     // No conversion necessary
     if (fmt == format_) {
         return;
@@ -161,7 +161,7 @@ inline void pixels::convert_to(pixel_format fmt) {
 }
 
 // Pixel conversion -> RGB to GREYSCALE
-inline pixel_format pixels::rgb_to_grey() {
+inline pixel_format pixel_data::rgb_to_grey() {
     // Since this is encapsulated we are trusting the size of the buffer
     constexpr auto dst_fmt = pixel_format::grey;
     const auto dst_sz = pixels_size(width_, height_, dst_fmt);
@@ -179,7 +179,7 @@ inline pixel_format pixels::rgb_to_grey() {
 }
 
 // Pixel conversion -> RGBA to GREYSCALE
-inline pixel_format pixels::rgba_to_grey() {
+inline pixel_format pixel_data::rgba_to_grey() {
     // Since this is encapsulated we are trusting the size of the buffer
     constexpr auto dst_fmt = pixel_format::grey;
     const auto dst_sz = pixels_size(width_, height_, dst_fmt);

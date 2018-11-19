@@ -19,25 +19,28 @@ namespace utils {
 // JPEG loader class
 class jpeg {
   public:
-    // No default/copy/move constructors
+    // No default/copy/move constructors and assignments
     jpeg() = delete;
     jpeg(const jpeg &) = delete;
     jpeg(jpeg &&) = delete;
+    jpeg &operator=(const jpeg &) = delete;
+    jpeg &operator=(jpeg &&) = delete;
     // Constructor -> filename
-    jpeg(const char *filename);
-    // We need a custom destructor to destroy our JPEG handle
+    explicit jpeg(const char *filename);
+    // We need a custom destructor to destroy our JPEG handles
     ~jpeg() {
         if (hand_ != nullptr) {
             tjDestroy(hand_);
         }
     }
     // Simple getter functions
+    [[nodiscard]] bool is_jpeg() const noexcept { return is_jpeg_; }
     [[nodiscard]] int width() const noexcept { return width_; }
     [[nodiscard]] int height() const noexcept { return height_; }
     [[nodiscard]] int subsamp() const noexcept { return subsamp_; }
     [[nodiscard]] int colorspace() const noexcept { return colorspace_; }
-  private:
 
+  private:
     bool is_jpeg_{false};
     tjhandle hand_{nullptr};
     int width_{};
@@ -45,15 +48,10 @@ class jpeg {
     int subsamp_{};
     int colorspace_{};
     bytes_t file_buf_{};
-
-
 };
 
-constexpr auto MSSSS = sizeof(bool) + (4 * sizeof(int)) + sizeof(bytes_t) + sizeof(tjhandle);
-
-constexpr auto SSSSSS = sizeof(jpeg);
-
-jpeg::jpeg(const char *filename) {
+// Our only constructor -> filename to open
+inline jpeg::jpeg(const char *filename) {
     // Read entire file into memory
     file_buf_ = file_binread(filename);
     if (file_buf_.empty()) {
@@ -61,17 +59,13 @@ jpeg::jpeg(const char *filename) {
     }
     // Read the JPEG header
     hand_ = tjInitDecompress();
-    if (tjDecompressHeader3(hand_, file_buf_.data(), file_buf_.size(), &width_,
-                            &height_, &subsamp_, &colorspace_) == -1) {
+    if (tjDecompressHeader3(hand_, file_buf_.data(), file_buf_.size(),
+                            &width_, &height_, &subsamp_,
+                            &colorspace_) == -1) {
         return;
     }
     is_jpeg_ = true;
 }
-
-// constexpr auto vvdvdvdvd = std::is_constructible<jpeg>::value;
-// constexpr auto vvdvdvdvds = std::is_default_constructible<jpeg>::value;
-// constexpr auto vvdvdvdvdc = std::is_copy_constructible<jpeg>::value;
-// constexpr auto vvdvdvdvd2 = std::is_move_constructible<jpeg>::value;
 
 class image {
   public:
@@ -79,7 +73,7 @@ class image {
     image() = default;
     // Construct with a given filename
     // Public member pixel class
-    pixels pixels{};
+    pixel_data pixels{};
     // Simple getter functions
     [[nodiscard]] int width() const noexcept { return pixels.width(); }
     [[nodiscard]] int height() const noexcept { return pixels.height(); }

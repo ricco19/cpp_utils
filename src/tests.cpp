@@ -60,15 +60,24 @@ int main(int argc, char *argv[]) {
 
 
 
-    const utils::file_ext ext[] = {
-        utils::get_file_ext(argv[1])
-    };
+    const auto ext = utils::get_file_ext(argv[1]);
+
 
     std::cout << argv[1] << '\n';
-    std::cout << "  Info: " << finfo << '\n';
-    for (auto e : ext) {
-        std::cout << "  Extension: " << e << '\n';
+    std::cout << "  Info: " << file_info_str(finfo) << '\n';
+    std::cout << "  Extension: " << file_ext_str(ext) << '\n';
+
+
+    auto jpeg = utils::jpeg(argv[1]);
+    if (jpeg.is_jpeg()) {
+        std::cout << "  JPEG Info:\n";
+        std::cout << "    Width = " << jpeg.width() << '\n';
+        std::cout << "    Height = " << jpeg.height() << '\n';
+        std::cout << "    Sub-sampling = " << jpeg.subsamp() << '\n';
+        std::cout << "    Color Space = " << jpeg.colorspace() << '\n';
     }
+
+
 
     return 0;
 

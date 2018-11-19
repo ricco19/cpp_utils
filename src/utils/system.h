@@ -32,52 +32,42 @@ constexpr auto MAX_FILE_SIZE = 512'000'000;
 // Maximum length of an extension -> 8 bytes
 constexpr auto MAX_EXT_LEN = sizeof(int64_t);
 
-// File information enumeration and an ostream operator
+// File information enumeration and a string conversion function
 enum class file_info { no_exist, is_file, is_dir, is_link };
-std::ostream &operator<<(std::ostream &os, file_info info) {
+inline std::string_view file_info_str(file_info info) {
     switch (info) {
     default:
     case file_info::no_exist:
-        os << "Unknown/Doesn't Exist";
         break;
     case file_info::is_file:
-        os << "File";
-        break;
+        return "File";
     case file_info::is_dir:
-        os << "Directory";
-        break;
+        return "Directory";
     case file_info::is_link:
-        os << "Symbolic Link";
-        break;
+        return "Symbolic Link";
     }
-    return os;
+    return "Unknown/Doesn't Exist";
 }
 
-// File extension enumeration and an ostream operator
+// File extension enumeration and a string conversion function
 enum class file_ext { unknown = -1, jpeg, tiff, gif, png, bmp };
-std::ostream &operator<<(std::ostream &os, file_ext ext) {
+inline std::string_view file_ext_str(file_ext ext) {
     switch (ext) {
     default:
     case file_ext::unknown:
-        os << "Unknown";
         break;
     case file_ext::jpeg:
-        os << "JPEG Image";
-        break;
+        return "JPEG Image";
     case file_ext::tiff:
-        os << "TIFF Image";
-        break;
+        return "TIFF Image";
     case file_ext::gif:
-        os << "GIF Image";
-        break;
+        return "GIF Image";
     case file_ext::png:
-        os << "PNG Image";
-        break;
+        return "PNG Image";
     case file_ext::bmp:
-        os << "BMP Image";
-        break;
+        return "BMP Image";
     }
-    return os;
+    return "Unknown";
 }
 
 // A very simple toupper function that works on ascii chars a-z only
@@ -334,15 +324,13 @@ inline void list_sort_naturally(list_t &list) {
             return 0;
         }
         return sv_to_i64(&sv[pos + 1]);
-    } else {
-        const auto ss = sv.substr(sv.size() - MAX_EXT_LEN, MAX_EXT_LEN);
-        const auto pos = ss.find_last_of('.');
-        if (pos == std::string_view::npos) {
-            return 0;
-        }
-        return sv_to_i64(&ss[pos + 1]);
     }
-    return 0;
+    const auto ss = sv.substr(sv.size() - MAX_EXT_LEN, MAX_EXT_LEN);
+    const auto pos = ss.find_last_of('.');
+    if (pos == std::string_view::npos) {
+        return 0;
+    }
+    return sv_to_i64(&ss[pos + 1]);
 }
 
 // Case insensitive file extension checker
