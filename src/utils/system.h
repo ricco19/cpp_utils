@@ -80,26 +80,8 @@ std::ostream &operator<<(std::ostream &os, file_ext ext) {
     return os;
 }
 
-// Internal functions
-namespace internal {
-inline bool is_crlf(const std::string &s) {
-    const auto pos = s.find('\n');
-    return (pos > 0) && (s.at(pos - 1) == '\r');
-}
-inline bool has_bom(const std::string &s) {
-    return (s.size() > 3) && (s[0] == '\xEF') && (s[1] == '\xBB') &&
-           (s[2] == '\xBF');
-}
-inline int biggest_int(int a, int b) {
-    if (a > b) {
-        return a;
-    }
-    return b;
-}
-} // namespace internal
-
 // A very simple toupper function that works on ascii chars a-z only
-constexpr int toupper_naive_ascii(const int ch) {
+[[nodiscard]] constexpr int toupper_naive_ascii(int ch) noexcept {
     if ((ch >= 97) && (ch <= 122)) {
         return ch - 32;
     }
@@ -108,7 +90,7 @@ constexpr int toupper_naive_ascii(const int ch) {
 
 // Converts first 8 bytes of a string to a 64 bit integer
 // Case insenstive, only works on ascii chars a-z
-constexpr int64_t sv_to_i64(std::string_view str) {
+[[nodiscard]] constexpr int64_t sv_to_i64(std::string_view str) {
     // Yikes: unrolled loop
     switch (str.size()) {
     case 0:
@@ -176,11 +158,10 @@ constexpr int64_t sv_to_i64(std::string_view str) {
 }
 
 // Reads entire file into a memory buffer (vector)
-inline bytes_t file_binread(const char *filename) {
+[[nodiscard]] inline bytes_t file_binread(const char *filename) {
     // Try to open the file
-    constexpr std::ios_base::openmode open_mode =
-        std::ios::in | std::ios::binary | std::ios::ate;
-    std::ifstream fst(filename, open_mode);
+    constexpr auto omode = std::ios::in | std::ios::binary | std::ios::ate;
+    std::ifstream fst(filename, omode);
     if (!fst.is_open()) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Error opening file.\n";
@@ -203,7 +184,8 @@ inline bytes_t file_binread(const char *filename) {
 }
 
 // Reads file into memory buffer (vector) with given offsets
-inline bytes_t file_binread(const char *filename, int beg, int end) {
+[[nodiscard]] inline bytes_t file_binread(const char *filename, int beg,
+                                          int end) {
     // Make sure end - beg > 0
     const auto bufsz = end - beg;
     if (bufsz <= 0) {
@@ -212,9 +194,8 @@ inline bytes_t file_binread(const char *filename, int beg, int end) {
         return bytes_t{};
     }
     // Try to open the file
-    constexpr std::ios_base::openmode open_mode =
-        std::ios::in | std::ios::binary | std::ios::ate;
-    std::ifstream fst(filename, open_mode);
+    constexpr auto omode = std::ios::in | std::ios::binary | std::ios::ate;
+    std::ifstream fst(filename, omode);
     if (!fst.is_open()) {
         std::cerr << "Cannot open file for input: " << filename
                   << "\n -> Error opening file.\n";
@@ -237,7 +218,8 @@ inline bytes_t file_binread(const char *filename, int beg, int end) {
 
 // Read binary data from a buffer into an integral type
 template <class IntType>
-IntType read_int(const bytes_t &buf, unsigned offset, bool bswap = false) {
+[[nodiscard]] IntType read_int(const bytes_t &buf, unsigned offset,
+                               bool bswap = false) {
     // Bounds checking
     constexpr auto sz = sizeof(IntType);
     if (offset + sz > buf.size()) {
@@ -301,7 +283,7 @@ inline void list_sort_naturally(list_t &list) {
 
 // Determines if a file exists, and what type of file it is
 #ifdef _WIN32
-inline file_info get_file_info(const char *path) noexcept {
+[[nodiscard]] inline file_info get_file_info(const char *path) noexcept {
     // Check for null/empty
     if (path == nullptr) {
         return file_info::no_exist;
@@ -323,7 +305,7 @@ inline file_info get_file_info(const char *path) noexcept {
     return file_info::is_file;
 }
 #else
-inline file_info get_file_info(const char *path) noexcept {
+[[nodiscard]] inline file_info get_file_info(const char *path) noexcept {
     // Stat the file, if this fails probably doesnt exist
     struct stat statbuf {};
     if (lstat(path, &statbuf) != 0) {
@@ -344,314 +326,37 @@ inline file_info get_file_info(const char *path) noexcept {
 }
 #endif
 
-// "magic numbers", 8 bytes converted to 64 bit int
-constexpr int64_t EXTTYPE_JPEG = sv_to_i64("JPEG");
-constexpr int64_t EXTTYPE_JPG = sv_to_i64("JPG");
-constexpr int64_t EXTTYPE_TIFF = sv_to_i64("TIFF");
-constexpr int64_t EXTTYPE_TIF = sv_to_i64("TIF");
-constexpr int64_t EXTTYPE_GIF = sv_to_i64("GIF");
-constexpr int64_t EXTTYPE_PNG = sv_to_i64("PNG");
-constexpr int64_t EXTTYPE_BMP = sv_to_i64("BMP");
-
-// Case insensitive file extension checker
-inline file_ext get_file_ext_strrchr(const char *filename) {
-    // Extract "file extension" naively using strrchr
-    // Can't be NULL
-    const char *ext = strrchr(filename, '.');
-    if (ext == nullptr) {
-        return file_ext::unknown;
-    }
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&ext[1]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
-}
-
-// Case insensitive file extension checker
-inline file_ext get_file_ext_strrchr2(const char *filename) {
-    // Extract "file extension" naively using strrchr
-    // Can't be NULL
-    const char *ext = strrchr(filename, '.');
-    if (ext == nullptr) {
-        return file_ext::unknown;
-    }
-    std::string_view sv{&ext[1]};
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(sv);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
-}
-
-// Case insensitive file extension checker
-constexpr file_ext get_file_ext_svflo(std::string_view filename) {
-    // Extract "file extension" naively using reverse char search
-    // There is a guaranteed null terminator, so + 1 is dirty but ok
-    const auto pos = filename.find_last_of('.') + 1;
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&filename[pos]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
-}
-
-// Case insensitive file extension checker
-constexpr file_ext get_file_ext_svrfind(std::string_view filename) {
-    // Extract "file extension" naively using reverse char search
-    // There is a guaranteed null terminator, so + 1 is dirty but ok
-    const auto pos = filename.rfind('.') + 1;
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&filename[pos]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
-}
-
-// Case insensitive file extension checker
-constexpr file_ext get_file_ext_manual(std::string_view filename) {
-    // Extract "file extension" naively using reverse char search
-    // There is a guaranteed null terminator, so + 1 is dirty but ok
-    auto dot_pos = filename.size();
-    for (; dot_pos > 0; --dot_pos) {
-        if (filename[dot_pos] == '.') {
-            dot_pos++;
-            break;
+// Trys to extract extension by finding '.' then converts to int64_t
+[[nodiscard]] constexpr int64_t get_ext_code(std::string_view sv) {
+    if (sv.size() < MAX_EXT_LEN) {
+        const auto pos = sv.find_last_of('.');
+        if (pos == std::string_view::npos) {
+            return 0;
         }
-    }
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&filename[dot_pos]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
-}
-
-
-
-
-
-// Case insensitive file extension checker
-inline file_ext get_file_ext_strrchr_lim(const char *filename) {
-    // Extract "file extension" naively using strrchr
-    // Can't be NULL
-    const auto len = strlen(filename);
-    auto start_pos = 0ULL;
-    if (strlen(filename) > MAX_EXT_LEN) {
-        start_pos = len - MAX_EXT_LEN;
-    }
-    const char *ext = strrchr(&filename[start_pos], '.');
-    if (ext == nullptr) {
-        return file_ext::unknown;
-    }
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&ext[1]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
-}
-
-// Case insensitive file extension checker
-inline file_ext get_file_ext_strrchr2_lim(const char *filename) {
-    // Extract "file extension" naively using strrchr
-    // Can't be NULL
-    const auto len = strlen(filename);
-    auto start_pos = 0ULL;
-    if (strlen(filename) > MAX_EXT_LEN) {
-        start_pos = len - MAX_EXT_LEN;
-    }
-    const char *ext = strrchr(&filename[start_pos], '.');
-    if (ext == nullptr) {
-        return file_ext::unknown;
-    }
-    std::string_view sv{&ext[1]};
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(sv);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
-}
-
-// Case insensitive file extension checker
-constexpr file_ext get_file_ext_svflo_lim(std::string_view filename) {
-    // Extract "file extension" naively using reverse char search
-    // There is a guaranteed null terminator, so + 1 is dirty but ok
-    const auto len = filename.size();
-    auto start_pos = 0ULL;
-    if (len > MAX_EXT_LEN) {
-        start_pos = len - 8;
-    }
-    std::string_view sv2{&filename[start_pos]};
-    const auto pos = sv2.find_last_of('.') + 1;
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&filename[pos]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
-}
-
-// Case insensitive file extension checker
-constexpr file_ext get_file_ext_svrfind_lim(std::string_view filename) {
-    // Extract "file extension" naively using reverse char search
-    // There is a guaranteed null terminator, so + 1 is dirty but ok
-    const auto len = filename.size();
-    auto start_pos = 0ULL;
-    if (len > MAX_EXT_LEN) {
-        start_pos = len - 8;
-    }
-    std::string_view sv2{&filename[start_pos]};
-    const auto pos = sv2.rfind('.') + 1;
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&filename[pos]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
-}
-
-// Case insensitive file extension checker
-constexpr file_ext get_file_ext_manual_lim(std::string_view filename) {
-    // Extract "file extension" naively using reverse char search
-    // There is a guaranteed null terminator, so + 1 is dirty but ok
-    auto dot_pos = filename.size();
-    unsigned ch = 0;
-    for (; dot_pos > 0; --dot_pos) {
-        if (ch >= MAX_EXT_LEN) {
-            break;
+        return sv_to_i64(&sv[pos + 1]);
+    } else {
+        const auto ss = sv.substr(sv.size() - MAX_EXT_LEN, MAX_EXT_LEN);
+        const auto pos = ss.find_last_of('.');
+        if (pos == std::string_view::npos) {
+            return 0;
         }
-        if (filename[dot_pos] == '.') {
-            dot_pos++;
-            break;
-        }
-        ch++;
+        return sv_to_i64(&ss[pos + 1]);
     }
+    return 0;
+}
+
+// Case insensitive file extension checker
+[[nodiscard]] constexpr file_ext get_file_ext(std::string_view filename) {
+    // "magic numbers", 8 bytes converted to 64 bit int
+    constexpr int64_t EXTTYPE_JPEG = sv_to_i64("JPEG");
+    constexpr int64_t EXTTYPE_JPG = sv_to_i64("JPG");
+    constexpr int64_t EXTTYPE_TIFF = sv_to_i64("TIFF");
+    constexpr int64_t EXTTYPE_TIF = sv_to_i64("TIF");
+    constexpr int64_t EXTTYPE_GIF = sv_to_i64("GIF");
+    constexpr int64_t EXTTYPE_PNG = sv_to_i64("PNG");
+    constexpr int64_t EXTTYPE_BMP = sv_to_i64("BMP");
     // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&filename[dot_pos]);
-    switch (val) {
+    switch (get_ext_code(filename)) {
     case EXTTYPE_GIF:
         return file_ext::gif;
     case EXTTYPE_PNG:
@@ -671,88 +376,23 @@ constexpr file_ext get_file_ext_manual_lim(std::string_view filename) {
 }
 
 /*
-// Case insensitive file extension checker
-inline file_ext get_file_ext_strrchr_ch(const char *filename) {
-    // Extract "file extension" naively using strrchr
-    // Can't be NULL
-    const char *ext = strrchr(filename, '.');
-    if (ext == nullptr) {
-        return file_ext::unknown;
-    }
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&ext[1]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
+// Internal functions
+namespace internal {
+inline bool is_crlf(const std::string &s) {
+    const auto pos = s.find('\n');
+    return (pos > 0) && (s.at(pos - 1) == '\r');
 }
-
-// Case insensitive file extension checker
-constexpr file_ext get_file_ext_svflo_ch(std::string_view filename) {
-    // Extract "file extension" naively using reverse char search
-    // There is a guaranteed null terminator, so + 1 is dirty but ok
-    const auto pos = filename.find_last_of('.') + 1;
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&filename[pos]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
+inline bool has_bom(const std::string &s) {
+    return (s.size() > 3) && (s[0] == '\xEF') && (s[1] == '\xBB') &&
+           (s[2] == '\xBF');
 }
-
-// Case insensitive file extension checker
-constexpr file_ext get_file_svrfind_ch(std::string_view filename) {
-    // Extract "file extension" naively using reverse char search
-    // There is a guaranteed null terminator, so + 1 is dirty but ok
-    const auto pos = filename.rfind('.');
-    // Extract integer value from the string so we can switch it
-    const auto val = sv_to_i64(&filename[pos]);
-    switch (val) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
+inline int biggest_int(int a, int b) {
+    if (a > b) {
+        return a;
     }
-    return file_ext::unknown;
+    return b;
 }
-*/
-/*
+} // namespace internal
 ///////////////////////////////
 // Windows directory listing //
 ///////////////////////////////

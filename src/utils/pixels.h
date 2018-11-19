@@ -11,28 +11,32 @@ namespace utils {
 
 // Maximum dimension for width and height of an image
 constexpr int PIXELS_MAX_DIM = 10000;
+
 // Supported pixel formats
 enum class pixel_format { invalid = -1, rgb, rgba, gray, grey };
+
 // Get the number of bytes per pixel (components) for each format
 // Returns -1 if invalid format
-constexpr int pxfmt_components(pixel_format fmt) {
+[[nodiscard]] constexpr int pxfmt_components(pixel_format fmt) noexcept {
     switch (fmt) {
-    case pixel_format::gray:
-    case pixel_format::grey:
-        return 1;
+    default:
+    case pixel_format::invalid:
+        break;
     case pixel_format::rgb:
         return 3;
     case pixel_format::rgba:
         return 4;
-    case pixel_format::invalid:
-    default:
-        break;
+    case pixel_format::gray:
+    case pixel_format::grey:
+        return 1;
     }
     return -1;
 }
+
 // Calculates the number of bytes in a single row of an image
 // Returns 0 on error
-inline unsigned pixels_get_pitch(int w, pixel_format fmt) {
+[[nodiscard]]
+constexpr unsigned pixels_pitch(int w, pixel_format fmt) noexcept {
     if (w > PIXELS_MAX_DIM) {
         return 0;
     }
@@ -42,15 +46,18 @@ inline unsigned pixels_get_pitch(int w, pixel_format fmt) {
     }
     return static_cast<unsigned>(w * comp);
 }
+
 // Calculates the total number of bytes in an image
 // Returns 0 on error
-inline unsigned pixels_get_size(int w, int h, pixel_format fmt) {
+[[nodiscard]]
+constexpr unsigned pixels_size(int w, int h, pixel_format fmt) noexcept {
     if (h > PIXELS_MAX_DIM) {
         return 0;
     }
-    return static_cast<unsigned>(h) * pixels_get_pitch(w, fmt);
+    return static_cast<unsigned>(h) * pixels_pitch(w, fmt);
 }
 
+// Pixels class, holds pixel buffer and conversion functions
 class pixels {
   public:
     // Default construct - empty buffer and values
@@ -60,7 +67,7 @@ class pixels {
         : format_{fmt}
         , width_{w}
         , height_{h}
-        , buf_(pixels_get_size(w, h, fmt), 0)
+        , buf_(pixels_size(w, h, fmt), 0)
         , is_valid_{verify_buf()} {}
     // Moves buffer and verifys
     pixels(bytes_t &&p, pixel_format fmt, int w, int h)
@@ -77,11 +84,11 @@ class pixels {
         , buf_{std::move(p)}
         , is_valid_{verify_buf()} {}
     // Simple getter functions
-    pixel_format format() const { return format_; }
-    int width() const { return width_; }
-    int height() const { return height_; }
-    bytes_t const &buf() const { return buf_; }
-    bool is_valid() const { return is_valid_; }
+    [[nodiscard]] pixel_format format() const noexcept { return format_; }
+    [[nodiscard]] int width() const noexcept { return width_; }
+    [[nodiscard]] int height() const noexcept { return height_; }
+    [[nodiscard]] bytes_t const &buf() const noexcept { return buf_; }
+    [[nodiscard]] bool is_valid() const noexcept { return is_valid_; }
     // Public functions
     void clear();
     void convert_to(pixel_format fmt);
@@ -99,8 +106,6 @@ class pixels {
     pixel_format rgba_to_grey();
 };
 
-constexpr auto SIZEEEEE = sizeof(pixels);
-
 // Resets the class back to empty/clean state
 inline void pixels::clear() {
     format_ = pixel_format::invalid;
@@ -116,7 +121,7 @@ inline bool pixels::verify_buf() {
         clear();
         return false;
     }
-    if (buf_.size() != pixels_get_size(width_, height_, format_)) {
+    if (buf_.size() != pixels_size(width_, height_, format_)) {
         clear();
         return false;
     }
@@ -159,7 +164,7 @@ inline void pixels::convert_to(pixel_format fmt) {
 inline pixel_format pixels::rgb_to_grey() {
     // Since this is encapsulated we are trusting the size of the buffer
     constexpr auto dst_fmt = pixel_format::grey;
-    const auto dst_sz = pixels_get_size(width_, height_, dst_fmt);
+    const auto dst_sz = pixels_size(width_, height_, dst_fmt);
     // RGB to Greyscale algorithm
     for (unsigned i = 0; i < dst_sz; ++i) {
         const auto offs = i * 3;
@@ -177,7 +182,7 @@ inline pixel_format pixels::rgb_to_grey() {
 inline pixel_format pixels::rgba_to_grey() {
     // Since this is encapsulated we are trusting the size of the buffer
     constexpr auto dst_fmt = pixel_format::grey;
-    const auto dst_sz = pixels_get_size(width_, height_, dst_fmt);
+    const auto dst_sz = pixels_size(width_, height_, dst_fmt);
     // RGBA to Greyscale algorithm
     for (unsigned i = 0; i < dst_sz; ++i) {
         const auto offs = i * 4;
