@@ -45,7 +45,8 @@ if(CMCC_IS_GCC)
                                 -fno-omit-frame-pointer>)
   # Flags that we use no matter what the build type is
   target_compile_options(${PROJECT_NAME}
-                         PUBLIC -O3
+                         PUBLIC -march=native
+                                -O3
                                 -Werror
                                 -Wall
                                 -Wextra
@@ -112,7 +113,8 @@ if(CMCC_IS_CLANG)
                                 -fno-omit-frame-pointer>)
   # Flags that we use no matter what the build type is
   target_compile_options(${PROJECT_NAME}
-                         PUBLIC -O3
+                         PUBLIC -march=native
+                                -O3
                                 -Werror
                                 -Wall
                                 -Wextra

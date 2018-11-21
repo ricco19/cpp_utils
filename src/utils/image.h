@@ -25,47 +25,149 @@ class jpeg {
     jpeg(jpeg &&) = delete;
     jpeg &operator=(const jpeg &) = delete;
     jpeg &operator=(jpeg &&) = delete;
-    // Constructor -> filename
-    explicit jpeg(const char *filename);
-    // We need a custom destructor to destroy our JPEG handles
+
+    // Our only constructor -> filename to open
+    explicit jpeg(const char *filename) {
+        // Read entire file into memory
+        file_buf_ = utils::file_binread(filename);
+        if (file_buf_.empty()) {
+            return;
+        }
+        // Read the JPEG header
+        hand_ = tjInitDecompress();
+        if (tjDecompressHeader3(hand_, file_buf_.data(), file_buf_.size(),
+                                &width_, &height_, &subsamp_,
+                                &colorspace_) == -1) {
+            return;
+        }
+        is_jpeg_ = true;
+    }
+
+    // We need a custom default destructor to destroy our JPEG handles
     ~jpeg() {
         if (hand_ != nullptr) {
             tjDestroy(hand_);
         }
     }
-    // Simple getter functions
-    [[nodiscard]] bool is_jpeg() const noexcept { return is_jpeg_; }
-    [[nodiscard]] int width() const noexcept { return width_; }
-    [[nodiscard]] int height() const noexcept { return height_; }
-    [[nodiscard]] int subsamp() const noexcept { return subsamp_; }
-    [[nodiscard]] int colorspace() const noexcept { return colorspace_; }
+
+    // Simple getters
+    bool is_jpeg() const noexcept { return is_jpeg_; }
+    int width() const noexcept { return width_; }
+    int height() const noexcept { return height_; }
+    int subsamp() const noexcept { return subsamp_; }
+    int colorspace() const noexcept { return colorspace_; }
+
+    // String view of TJSAMP enum
+    std::string_view subsamp_sv() const {
+        switch (subsamp_) {
+        case TJSAMP_444:
+            return "TJSAMP_444";
+        case TJSAMP_422:
+            return "TJSAMP_422";
+        case TJSAMP_420:
+            return "TJSAMP_420";
+        case TJSAMP_GRAY:
+            return "TJSAMP_GRAY";
+        case TJSAMP_440:
+            return "TJSAMP_440";
+        case TJSAMP_411:
+            return "TJSAMP_411";
+        default:
+            break;
+        }
+        return "Unknown";
+    }
+
+    // String view of TJCS enum
+    std::string_view colorspace_sv() const {
+        switch (colorspace_) {
+        case TJCS_RGB:
+            return "TJCS_RGB";
+        case TJCS_YCbCr:
+            return "TJCS_YCbCr";
+        case TJCS_GRAY:
+            return "TJCS_GRAY";
+        case TJCS_CMYK:
+            return "TJCS_CMYK";
+        case TJCS_YCCK:
+            return "TJCS_YCCK";
+        default:
+            break;
+        }
+        return "Unknown";
+    }
+
+    // Decompress to pixels
+    pixel_data get_pixels() const {
+        return get_pixels(get_best_format());
+    }
+    pixel_data get_pixels(utils::Pixel_Format fmt) const {
+        // Create empty pixel buffer
+        pixel_data p{fmt, width_, height_};
+        if (!p.is_valid()) {
+            return p;
+        }
+        // Decompress image
+        const auto jpfmt = pfmt_to_jfmt(fmt);
+        const auto pitch = static_cast<int>(pixels_pitch(width_, fmt));
+        const auto err = tjDecompress2(hand_, file_buf_.data(),
+                                       file_buf_.size(), p.buf.data(), width_,
+                                       pitch, height_, jpfmt, TJFLAG_NOREALLOC);
+        if (err != 0) {
+            std::cerr << "[ERROR] Could not decompress JPEG! errcode = " << err
+                      << '\n';
+            p.clear();
+        }
+        return p;
+    }
 
   private:
     bool is_jpeg_{false};
     tjhandle hand_{nullptr};
     int width_{};
     int height_{};
-    int subsamp_{};
-    int colorspace_{};
-    bytes_t file_buf_{};
+    int subsamp_{-1};
+    int colorspace_{-1};
+    utils::bytes_t file_buf_{};
+
+    // Determines the best pixel format given our JPEG info
+    utils::Pixel_Format get_best_format() const noexcept {
+        switch (colorspace_) {
+        // Decompress to RGB
+        case TJCS_RGB:
+        case TJCS_YCbCr:
+            return utils::Pixel_Format::RGB;
+        // Decompress to GRAYSCALE
+        case TJCS_GRAY:
+            return utils::Pixel_Format::GRAY;
+        // Cuurently not supported
+        case TJCS_CMYK:
+        case TJCS_YCCK:
+        default:
+            break;
+        }
+        std::cerr << "[ERROR] JPEG colorspace (" << colorspace_sv()
+                  << ") is not supported!\n";
+        return utils::Pixel_Format::Unknown;
+    }
+
+    // Converts our pixel format to the correct JPEG pixel format enum
+    int pfmt_to_jfmt(utils::Pixel_Format fmt) const noexcept {
+        switch (fmt) {
+        default:
+        case utils::Pixel_Format::Unknown:
+            break;
+        case utils::Pixel_Format::RGB:
+            return TJPF_RGB;
+        case utils::Pixel_Format::RGBA:
+            return TJPF_RGBA;
+        case utils::Pixel_Format::GRAY:
+            return TJPF_GRAY;
+        }
+        return TJPF_UNKNOWN;
+    }
 };
 
-// Our only constructor -> filename to open
-inline jpeg::jpeg(const char *filename) {
-    // Read entire file into memory
-    file_buf_ = file_binread(filename);
-    if (file_buf_.empty()) {
-        return;
-    }
-    // Read the JPEG header
-    hand_ = tjInitDecompress();
-    if (tjDecompressHeader3(hand_, file_buf_.data(), file_buf_.size(),
-                            &width_, &height_, &subsamp_,
-                            &colorspace_) == -1) {
-        return;
-    }
-    is_jpeg_ = true;
-}
 
 class image {
   public:
@@ -73,10 +175,10 @@ class image {
     image() = default;
     // Construct with a given filename
     // Public member pixel class
-    pixel_data pixels{};
+    utils::pixel_data pixels{};
     // Simple getter functions
-    [[nodiscard]] int width() const noexcept { return pixels.width(); }
-    [[nodiscard]] int height() const noexcept { return pixels.height(); }
+    int width() const noexcept { return pixels.width(); }
+    int height() const noexcept { return pixels.height(); }
 
   private:
 };
@@ -84,123 +186,6 @@ class image {
 } // namespace utils
 
 /*
-namespace image {
-
-// Internal namespace for invidual image librarys
-namespace internal {
-class jpeg {
-  public:
-    jpeg() = default;
-    jpeg(const char *filename) { is_jpeg_ = read_header(filename); }
-    ~jpeg() {
-        if (hand_ != nullptr) {
-            tjDestroy(hand_);
-        }
-    }
-    // Get rid of all other constructors
-    jpeg(jpeg &&) = delete;
-    jpeg(jpeg &) = delete;
-    jpeg &operator=(const jpeg &) = delete;
-    jpeg &operator=(jpeg &&) = delete;
-    // Member functions
-    bool open(const char *filename) {
-        clear();
-        is_jpeg_ = read_header(filename);
-        return is_jpeg_;
-    }
-    bool is_jpeg() const { return is_jpeg_; }
-    uint32_t width() const { return width_; }
-    uint32_t height() const { return height_; }
-    void clear() {
-        if (hand_ != nullptr) {
-            tjDestroy(hand_);
-        }
-        file_buf_.clear();
-        is_jpeg_ = false;
-        width_ = 0;
-        height_ = 0;
-        subsamp_ = 0;
-        colorspace_ = 0;
-    }
-    pixels get_pixels(const int fmt = PIXFMT_UNKNOWN) {
-        // Make sure we actually have a jpeg
-        if (!is_jpeg_ || hand_ == nullptr) {
-            return pixels{};
-        }
-        // Get pixel formats
-        const int jpeg_pix_fmt{get_jpeg_pixel_fmt(fmt)};
-        const int pix_fmt{get_pixel_fmt(jpeg_pix_fmt)};
-        // Initalize pixel buffer
-        pixels p{pix_fmt, width_, height_};
-        if (!p.is_valid()) {
-            return p;
-        }
-        // Decompress image into pixels
-        const int pitch = width_ * pixfmt_components(pix_fmt);
-        const int err = tjDecompress2(hand_, &file_buf_[0], file_buf_.size(),
-                                      &p.buf[0], width_, pitch, height_,
-                                      jpeg_pix_fmt, TJFLAG_NOREALLOC);
-        if (err != 0) {
-            p.clear();
-        }
-        return p;
-    }
-
-  private:
-    tjhandle hand_{nullptr};
-    utils::bytearr_t file_buf_{};
-    bool is_jpeg_{false};
-    int width_{};
-    int height_{};
-    int subsamp_{};
-    int colorspace_{};
-    // Opens a file and reads just the header
-    inline bool read_header(const char *filename) {
-        // Load entire file into memory
-        file_buf_ = utils::file_binread(filename);
-        if (file_buf_.size() < 10) {
-            return false;
-        }
-        // Create a decompress handle and fetch information
-        hand_ = tjInitDecompress();
-        if (tjDecompressHeader3(hand_, &file_buf_[0], file_buf_.size(), &width_,
-                                &height_, &subsamp_, &colorspace_) == -1) {
-            return false;
-        }
-        return true;
-    }
-    // Translates our PIXFMT to jpegturbos pixel format
-    inline int get_jpeg_pixel_fmt(const int fmt) {
-        switch (fmt) {
-        case PIXFMT_GREY:
-            return TJPF_GRAY;
-        case PIXFMT_RGBA:
-            return TJPF_RGBA;
-        // If no format is specified, we default to RGB or GREY depending on the
-        // images colorspace
-        case PIXFMT_RGB:
-        case PIXFMT_UNKNOWN:
-        default:
-            break;
-        }
-        return TJPF_RGB;
-    }
-    // Translates jpegturbos pixel format to our PIXFMT
-    inline int get_pixel_fmt(const int fmt) {
-        switch (fmt) {
-        case TJPF_GRAY:
-            return PIXFMT_GREY;
-        case TJPF_RGBA:
-            return PIXFMT_RGBA;
-        case TJPF_RGB:
-            return PIXFMT_RGB;
-        default:
-            break;
-        }
-        return PIXFMT_UNKNOWN;
-    }
-};
-
 class tiff {
   public:
     tiff() = default;
@@ -261,43 +246,5 @@ class tiff {
     uint16_t bytes_pp_{};
     uint16_t bits_pp_{};
 };
-
-} // namespace internal
-
-class load_image {
-  public:
-    // Constructors
-    explicit load_image(const char *filename) {
-        // Try to load the image based on file extension
-        const int ext = utils::get_file_ext(filename);
-        // JPEG
-        if (ext == utils::EXT_JPEG) {
-            const auto jpeg = internal::jpeg{filename};
-            if (!jpeg.is_jpeg()) {
-                return;
-            }
-        }
-        // TIFF
-        if (ext == utils::EXT_TIFF) {
-            return;
-        }
-        // Failed to load the image
-        // TODO: If above fails, try to determine image type with header
-    }
-    ~load_image() {}
-    // Get rid of all other constructors
-    load_image() = delete;
-    load_image(load_image &&) = delete;
-    load_image(load_image &) = delete;
-    load_image &operator=(const load_image &) = delete;
-    load_image &operator=(load_image &&) = delete;
-    // Member functions
-    bool is_image() const { return is_image_; }
-
-  private:
-    bool is_image_{false};
-    image::pixels pixels_{};
-};
-} // namespace image
 */
 #endif

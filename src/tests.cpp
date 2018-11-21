@@ -58,27 +58,28 @@ int main(int argc, char *argv[]) {
 
     const auto finfo = utils::get_file_info(argv[1]);
 
-
-
     const auto ext = utils::get_file_ext(argv[1]);
 
-
     std::cout << argv[1] << '\n';
-    std::cout << "  Info: " << file_info_str(finfo) << '\n';
-    std::cout << "  Extension: " << file_ext_str(ext) << '\n';
-
+    std::cout << "  Info: " << finfo << '\n';
+    std::cout << "  Extension: " << ext << '\n';
 
     auto jpeg = utils::jpeg(argv[1]);
     if (jpeg.is_jpeg()) {
         std::cout << "  JPEG Info:\n";
-        std::cout << "    Width = " << jpeg.width() << '\n';
-        std::cout << "    Height = " << jpeg.height() << '\n';
-        std::cout << "    Sub-sampling = " << jpeg.subsamp() << '\n';
-        std::cout << "    Color Space = " << jpeg.colorspace() << '\n';
+        std::cout << "    Width: " << jpeg.width() << '\n';
+        std::cout << "    Height: " << jpeg.height() << '\n';
+        std::cout << "    Subsampling: " << jpeg.subsamp_sv() << '\n';
+        std::cout << "    Color Space: " << jpeg.colorspace_sv() << '\n';
+        auto p = jpeg.get_pixels();
+        if (p.is_valid()) {
+            std::cout << "    Pixels: " << p.format()
+                      << " (" << p.buf.size() << ")\n";
+            p.convert_to(utils::Pixel_Format::GRAY);
+            std::cout << "    Pixels: " << p.format()
+                      << " (" << p.buf.size() << ")\n";
+        }
     }
 
-
-
     return 0;
-
 }

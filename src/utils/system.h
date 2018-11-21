@@ -26,190 +26,87 @@ namespace utils {
 using bytes_t = std::vector<uint8_t>;
 using list_t = std::vector<std::string>;
 
-// Maximum size of a file we want to operate on -> 512mb
-constexpr auto MAX_FILE_SIZE = 512'000'000;
-
-// Maximum length of an extension -> 8 bytes
-constexpr auto MAX_EXT_LEN = sizeof(int64_t);
-
-// File information enumeration and a string conversion function
-enum class file_info { no_exist, is_file, is_dir, is_link };
-inline std::string_view file_info_str(file_info info) {
-    switch (info) {
-    default:
-    case file_info::no_exist:
-        break;
-    case file_info::is_file:
-        return "File";
-    case file_info::is_dir:
-        return "Directory";
-    case file_info::is_link:
-        return "Symbolic Link";
-    }
-    return "Unknown/Doesn't Exist";
-}
-
-// File extension enumeration and a string conversion function
-enum class file_ext { unknown = -1, jpeg, tiff, gif, png, bmp };
-inline std::string_view file_ext_str(file_ext ext) {
-    switch (ext) {
-    default:
-    case file_ext::unknown:
-        break;
-    case file_ext::jpeg:
-        return "JPEG Image";
-    case file_ext::tiff:
-        return "TIFF Image";
-    case file_ext::gif:
-        return "GIF Image";
-    case file_ext::png:
-        return "PNG Image";
-    case file_ext::bmp:
-        return "BMP Image";
-    }
-    return "Unknown";
-}
-
 // A very simple toupper function that works on ascii chars a-z only
-[[nodiscard]] constexpr int toupper_naive_ascii(int ch) noexcept {
+// The uint64 version saves some readibility
+constexpr int toupper_ascii(const int ch) noexcept {
     if ((ch >= 97) && (ch <= 122)) {
         return ch - 32;
     }
     return ch;
 }
+constexpr uint64_t toupper_ascii_uint64(const int ch) noexcept {
+    if ((ch >= 97) && (ch <= 122)) {
+        return static_cast<uint64_t>(ch - 32);
+    }
+    return static_cast<uint64_t>(ch);
+}
 
-// Converts first 8 bytes of a string to a 64 bit integer
+// Converts first 8 bytes of a string to a 64 bit unsigned integer
 // Case insenstive, only works on ascii chars a-z
-[[nodiscard]] constexpr int64_t sv_to_i64(std::string_view str) {
-    // Yikes: unrolled loop
+constexpr uint64_t str_to_uint64(const std::string_view str) {
+    // Yikes: unrolled loop and ugly casts
     switch (str.size()) {
     case 0:
         return 0;
     case 1:
-        return static_cast<int64_t>(toupper_naive_ascii(str[0]));
+        return toupper_ascii_uint64(str[0]);
     case 2:
-        return static_cast<int64_t>(
-            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8));
+        return (toupper_ascii_uint64(str[0]) << 0) |
+               (toupper_ascii_uint64(str[1]) << 8);
         break;
     case 3:
-        return static_cast<int64_t>(
-            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16));
+        return (toupper_ascii_uint64(str[0]) << 0) |
+               (toupper_ascii_uint64(str[1]) << 8) |
+               (toupper_ascii_uint64(str[2]) << 16);
         break;
     case 4:
-        return static_cast<int64_t>(
-            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24));
+        return (toupper_ascii_uint64(str[0]) << 0) |
+               (toupper_ascii_uint64(str[1]) << 8) |
+               (toupper_ascii_uint64(str[2]) << 16) |
+               (toupper_ascii_uint64(str[3]) << 24);
         break;
     case 5:
-        return static_cast<int64_t>(
-            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[4])) << 32));
+        return (toupper_ascii_uint64(str[0]) << 0) |
+               (toupper_ascii_uint64(str[1]) << 8) |
+               (toupper_ascii_uint64(str[2]) << 16) |
+               (toupper_ascii_uint64(str[3]) << 24) |
+               (toupper_ascii_uint64(str[4]) << 32);
         break;
     case 6:
-        return static_cast<int64_t>(
-            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[4])) << 32) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[5])) << 40));
+        return (toupper_ascii_uint64(str[0]) << 0) |
+               (toupper_ascii_uint64(str[1]) << 8) |
+               (toupper_ascii_uint64(str[2]) << 16) |
+               (toupper_ascii_uint64(str[3]) << 24) |
+               (toupper_ascii_uint64(str[4]) << 32) |
+               (toupper_ascii_uint64(str[5]) << 40);
         break;
     case 7:
-        return static_cast<int64_t>(
-            (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[4])) << 32) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[5])) << 40) |
-            (static_cast<uint64_t>(toupper_naive_ascii(str[6])) << 48));
+        return (toupper_ascii_uint64(str[0]) << 0) |
+               (toupper_ascii_uint64(str[1]) << 8) |
+               (toupper_ascii_uint64(str[2]) << 16) |
+               (toupper_ascii_uint64(str[3]) << 24) |
+               (toupper_ascii_uint64(str[4]) << 32) |
+               (toupper_ascii_uint64(str[5]) << 40) |
+               (toupper_ascii_uint64(str[6]) << 48);
         break;
     case 8:
     default:
         break;
     }
-    return static_cast<int64_t>(
-        (static_cast<uint64_t>(toupper_naive_ascii(str[0])) << 0) |
-        (static_cast<uint64_t>(toupper_naive_ascii(str[1])) << 8) |
-        (static_cast<uint64_t>(toupper_naive_ascii(str[2])) << 16) |
-        (static_cast<uint64_t>(toupper_naive_ascii(str[3])) << 24) |
-        (static_cast<uint64_t>(toupper_naive_ascii(str[4])) << 32) |
-        (static_cast<uint64_t>(toupper_naive_ascii(str[5])) << 40) |
-        (static_cast<uint64_t>(toupper_naive_ascii(str[6])) << 48) |
-        (static_cast<uint64_t>(toupper_naive_ascii(str[7])) << 56));
-}
-
-// Reads entire file into a memory buffer (vector)
-[[nodiscard]] inline bytes_t file_binread(const char *filename) {
-    // Try to open the file
-    constexpr auto omode = std::ios::in | std::ios::binary | std::ios::ate;
-    std::ifstream fst(filename, omode);
-    if (!fst.is_open()) {
-        std::cerr << "Cannot open file for input: " << filename
-                  << "\n -> Error opening file.\n";
-        return bytes_t{};
-    }
-    // Get size of the file, ignore <= 0 > max_size
-    const auto filesz = static_cast<int64_t>(fst.tellg());
-    if (filesz <= 0 || filesz > MAX_FILE_SIZE) {
-        std::cerr << "Cannot open file for input: " << filename
-                  << "\n -> Invalid file size (" << filesz
-                  << ")! Max = " << MAX_FILE_SIZE << '\n';
-        return bytes_t{};
-    }
-    // Read entire file into a string buffer
-    fst.seekg(std::ios::beg);
-    bytes_t buf(static_cast<unsigned>(filesz));
-    fst.read(reinterpret_cast<char *>(&buf[0]), filesz); // NOLINT
-    fst.close();
-    return buf;
-}
-
-// Reads file into memory buffer (vector) with given offsets
-[[nodiscard]] inline bytes_t file_binread(const char *filename, int beg,
-                                          int end) {
-    // Make sure end - beg > 0
-    const auto bufsz = end - beg;
-    if (bufsz <= 0) {
-        std::cerr << "Cannot open file for input: " << filename
-                  << "\n -> Invalid range specified.\n";
-        return bytes_t{};
-    }
-    // Try to open the file
-    constexpr auto omode = std::ios::in | std::ios::binary | std::ios::ate;
-    std::ifstream fst(filename, omode);
-    if (!fst.is_open()) {
-        std::cerr << "Cannot open file for input: " << filename
-                  << "\n -> Error opening file.\n";
-        return bytes_t{};
-    }
-    // Get size of the file, ignore <= 0 > max_size
-    const auto filesz = static_cast<int64_t>(fst.tellg());
-    if (filesz < end) {
-        std::cerr << "Cannot open file for input: " << filename
-                  << "\n -> Invalid file size!" << '\n';
-        return bytes_t{};
-    }
-    // Read file range into a string buffer
-    fst.seekg(std::ios::beg + beg);
-    bytes_t buf(static_cast<unsigned>(bufsz));
-    fst.read(reinterpret_cast<char *>(&buf[0]), bufsz); // NOLINT
-    fst.close();
-    return buf;
+    return (toupper_ascii_uint64(str[0]) << 0) |
+           (toupper_ascii_uint64(str[1]) << 8) |
+           (toupper_ascii_uint64(str[2]) << 16) |
+           (toupper_ascii_uint64(str[3]) << 24) |
+           (toupper_ascii_uint64(str[4]) << 32) |
+           (toupper_ascii_uint64(str[5]) << 40) |
+           (toupper_ascii_uint64(str[6]) << 48) |
+           (toupper_ascii_uint64(str[7]) << 56);
 }
 
 // Read binary data from a buffer into an integral type
 template <class IntType>
-[[nodiscard]] IntType read_int(const bytes_t &buf, unsigned offset,
-                               bool bswap = false) {
+[[nodiscard]] IntType read_int(const bytes_t &buf, const unsigned offset,
+                               const bool bswap = false) {
     // Bounds checking
     constexpr auto sz = sizeof(IntType);
     if (offset + sz > buf.size()) {
@@ -253,6 +150,217 @@ template <class IntType>
     return val;
 }
 
+//
+// Determine if a file or folder exists
+// TODO: test std::filesystem performance
+//
+enum class File_Info {
+    Unknown = -1,
+    Is_File,
+    Is_Dir,
+    Is_Link
+};
+constexpr std::ostream &operator<<(std::ostream &os, const File_Info info) {
+    switch (info) {
+    default:
+    case File_Info::Unknown:
+        os << "Unknown";
+        break;
+    case File_Info::Is_File:
+        os << "File";
+        break;
+    case File_Info::Is_Dir:
+        os << "Directory";
+        break;
+    case File_Info::Is_Link:
+        os << "Symbolic Link";
+        break;
+    }
+    return os;
+}
+// Determines if a file exists, and what type of file it is
+#ifdef _WIN32
+inline File_Info get_file_info(const char *path) noexcept {
+    // Check for null/empty
+    if (path == nullptr) {
+        return File_Info::Unknown;
+    }
+    const auto len = strlen(path);
+    if (len <= 0) {
+        return File_Info::Unknown;
+    }
+    // Try to get attributes
+    const auto res = GetFileAttributesW(widen(path).data());
+    // Check for error, most likely from non-existance
+    if (res == INVALID_FILE_ATTRIBUTES) {
+        return File_Info::Unknown;
+    }
+    // In windows, if it's not a directory it's a file
+    if ((res & static_cast<DWORD>(FILE_ATTRIBUTE_DIRECTORY)) != 0u) {
+        return File_Info::Is_Dir;
+    }
+    return File_Info::Is_File;
+}
+#else
+inline File_Info get_file_info(const char *path) noexcept {
+    // Stat the file, if this fails probably doesnt exist
+    struct stat statbuf {};
+    if (lstat(path, &statbuf) != 0) {
+        return File_Info::Unknown;
+    }
+    // Check flags
+    switch (statbuf.st_mode & static_cast<unsigned>(S_IFMT)) {
+    case S_IFDIR:
+        return File_Info::Is_Dir;
+    case S_IFLNK:
+        return File_Info::Is_Link;
+    case S_IFREG:
+        return File_Info::Is_File;
+    default:
+        break;
+    }
+    return File_Info::Unknown;
+}
+#endif
+
+//
+// Naive file (string) extension checker
+//
+enum class File_Ext { Unknown = -1, JPEG, TIFF, GIF, PNG, BMP };
+constexpr std::ostream &operator<<(std::ostream &os, const File_Ext ext) {
+    switch (ext) {
+    default:
+    case File_Ext::Unknown:
+        os << "Unknown";
+        break;
+    case File_Ext::JPEG:
+        os << "JPEG Image";
+        break;
+    case File_Ext::TIFF:
+        os << "TIFF Image";
+        break;
+    case File_Ext::GIF:
+        os << "GIF Image";
+        break;
+    case File_Ext::PNG:
+        os << "PNG Image";
+        break;
+    case File_Ext::BMP:
+        os << "BMP Image";
+        break;
+    }
+    return os;
+}
+// Trys to extract extension by finding '.' then converts to int64_t
+constexpr uint64_t get_ext_code(const std::string_view sv) {
+    // Maximum length of an extension -> 8 bytes
+    constexpr auto MAX_EXT_LEN = sizeof(uint64_t);
+    if (sv.size() < MAX_EXT_LEN) {
+        const auto pos = sv.find_last_of('.');
+        if (pos == std::string_view::npos) {
+            return 0;
+        }
+        return str_to_uint64(&sv[pos + 1]);
+    }
+    const auto ss = sv.substr(sv.size() - MAX_EXT_LEN, MAX_EXT_LEN);
+    const auto pos = ss.find_last_of('.');
+    if (pos == std::string_view::npos) {
+        return 0;
+    }
+    return str_to_uint64(&ss[pos + 1]);
+}
+// Case insensitive file extension checker
+constexpr File_Ext get_file_ext(const std::string_view filename) {
+    // "magic numbers", 8 bytes converted to 64 bit int
+    constexpr auto EXTTYPE_JPEG = str_to_uint64("JPEG");
+    constexpr auto EXTTYPE_JPG = str_to_uint64("JPG");
+    constexpr auto EXTTYPE_TIFF = str_to_uint64("TIFF");
+    constexpr auto EXTTYPE_TIF = str_to_uint64("TIF");
+    constexpr auto EXTTYPE_GIF = str_to_uint64("GIF");
+    constexpr auto EXTTYPE_PNG = str_to_uint64("PNG");
+    constexpr auto EXTTYPE_BMP = str_to_uint64("BMP");
+    // Extract integer value from the string so we can switch it
+    switch (get_ext_code(filename)) {
+    case EXTTYPE_GIF:
+        return File_Ext::GIF;
+    case EXTTYPE_PNG:
+        return File_Ext::PNG;
+    case EXTTYPE_BMP:
+        return File_Ext::BMP;
+    case EXTTYPE_JPG:
+    case EXTTYPE_JPEG:
+        return File_Ext::JPEG;
+    case EXTTYPE_TIF:
+    case EXTTYPE_TIFF:
+        return File_Ext::TIFF;
+    default:
+        break;
+    }
+    return File_Ext::Unknown;
+}
+
+//
+// Read a file from disk into memory (vector of bytes)
+//
+inline bytes_t file_binread(const char *filename) {
+    // Maximum size of a file we want to operate on -> 512mb
+    constexpr std::streamoff MAX_FILE_SIZE = 512'000'000;
+    // Try to open the file, readonly, binary, seek to end
+    constexpr auto omode = std::ios::in | std::ios::binary | std::ios::ate;
+    std::ifstream fst(filename, omode);
+    if (!fst.is_open()) {
+        std::cerr << "[ERROR] Cannot open file for input: " << filename
+                  << "\n -> Error opening file.\n";
+        return bytes_t{};
+    }
+    // Get size of the file, ignore <= 0 > max_size
+    const auto filesz = static_cast<std::streamoff>(fst.tellg());
+    if (filesz <= 0 || filesz > MAX_FILE_SIZE) {
+        std::cerr << "[ERROR] Cannot open file for input: " << filename
+                  << "\n -> Invalid file size (" << filesz
+                  << ")! Max = " << MAX_FILE_SIZE << '\n';
+        return bytes_t{};
+    }
+    // Read entire file into a string buffer
+    fst.seekg(std::ios::beg);
+    bytes_t buf(static_cast<uint64_t>(filesz));
+    fst.read(reinterpret_cast<char *>(buf.data()), filesz); // NOLINT
+    fst.close();
+    return buf;
+}
+inline bytes_t file_binread(const char *filename, const std::streamoff beg,
+                            const std::streamoff end) {
+    // Make sure end - beg > 0
+    const auto bufsz = end - beg;
+    if (bufsz <= 0) {
+        std::cerr << "[ERROR] Cannot open file for input: " << filename
+                  << "\n -> Invalid range specified.\n";
+        return bytes_t{};
+    }
+    // Try to open the file, readonly, binary, seek to end
+    constexpr auto omode = std::ios::in | std::ios::binary | std::ios::ate;
+    std::ifstream fst(filename, omode);
+    if (!fst.is_open()) {
+        std::cerr << "[ERROR] Cannot open file for input: " << filename
+                  << "\n -> Error opening file.\n";
+        return bytes_t{};
+    }
+    // Get size of the file, ignore <= 0 > end
+    const auto filesz = static_cast<std::streamoff>(fst.tellg());
+    if (filesz < end) {
+        std::cerr << "[ERROR] Cannot open file for input: " << filename
+                  << "\n -> Invalid file size!" << '\n';
+        return bytes_t{};
+    }
+    // Read file range into a string buffer
+    fst.seekg(std::ios::beg + beg);
+    bytes_t buf(static_cast<uint64_t>(bufsz));
+    fst.read(reinterpret_cast<char *>(buf.data()), bufsz); // NOLINT
+    fst.close();
+    return buf;
+}
+
+// List operations
 // Shuffles a list using a random seed based on time
 inline void list_shuffle(list_t &list) {
 #ifdef __MINGW32__ // mingws random_device is broken
@@ -269,98 +377,6 @@ inline void list_sort_naturally(list_t &list) {
               [](const std::string &lhs, const std::string &rhs) {
                   return natcmp(lhs, rhs) < 0;
               });
-}
-
-// Determines if a file exists, and what type of file it is
-#ifdef _WIN32
-[[nodiscard]] inline file_info get_file_info(const char *path) noexcept {
-    // Check for null/empty
-    if (path == nullptr) {
-        return file_info::no_exist;
-    }
-    const auto len = strlen(path);
-    if (len <= 0) {
-        return file_info::no_exist;
-    }
-    // Try to get attributes
-    const auto res = GetFileAttributesW(&widen(path)[0]);
-    // Check for error, most likely from non-existance
-    if (res == INVALID_FILE_ATTRIBUTES) {
-        return file_info::no_exist;
-    }
-    // In windows, if it's not a directory it's a file
-    if ((res & static_cast<DWORD>(FILE_ATTRIBUTE_DIRECTORY)) != 0u) {
-        return file_info::is_dir;
-    }
-    return file_info::is_file;
-}
-#else
-[[nodiscard]] inline file_info get_file_info(const char *path) noexcept {
-    // Stat the file, if this fails probably doesnt exist
-    struct stat statbuf {};
-    if (lstat(path, &statbuf) != 0) {
-        return file_info::no_exist;
-    }
-    // Check flags
-    switch (statbuf.st_mode & static_cast<unsigned>(S_IFMT)) {
-    case S_IFDIR:
-        return file_info::is_dir;
-    case S_IFLNK:
-        return file_info::is_link;
-    case S_IFREG:
-        return file_info::is_file;
-    default:
-        break;
-    }
-    return file_info::no_exist;
-}
-#endif
-
-// Trys to extract extension by finding '.' then converts to int64_t
-[[nodiscard]] constexpr int64_t get_ext_code(std::string_view sv) {
-    if (sv.size() < MAX_EXT_LEN) {
-        const auto pos = sv.find_last_of('.');
-        if (pos == std::string_view::npos) {
-            return 0;
-        }
-        return sv_to_i64(&sv[pos + 1]);
-    }
-    const auto ss = sv.substr(sv.size() - MAX_EXT_LEN, MAX_EXT_LEN);
-    const auto pos = ss.find_last_of('.');
-    if (pos == std::string_view::npos) {
-        return 0;
-    }
-    return sv_to_i64(&ss[pos + 1]);
-}
-
-// Case insensitive file extension checker
-[[nodiscard]] constexpr file_ext get_file_ext(std::string_view filename) {
-    // "magic numbers", 8 bytes converted to 64 bit int
-    constexpr int64_t EXTTYPE_JPEG = sv_to_i64("JPEG");
-    constexpr int64_t EXTTYPE_JPG = sv_to_i64("JPG");
-    constexpr int64_t EXTTYPE_TIFF = sv_to_i64("TIFF");
-    constexpr int64_t EXTTYPE_TIF = sv_to_i64("TIF");
-    constexpr int64_t EXTTYPE_GIF = sv_to_i64("GIF");
-    constexpr int64_t EXTTYPE_PNG = sv_to_i64("PNG");
-    constexpr int64_t EXTTYPE_BMP = sv_to_i64("BMP");
-    // Extract integer value from the string so we can switch it
-    switch (get_ext_code(filename)) {
-    case EXTTYPE_GIF:
-        return file_ext::gif;
-    case EXTTYPE_PNG:
-        return file_ext::png;
-    case EXTTYPE_BMP:
-        return file_ext::bmp;
-    case EXTTYPE_JPG:
-    case EXTTYPE_JPEG:
-        return file_ext::jpeg;
-    case EXTTYPE_TIF:
-    case EXTTYPE_TIFF:
-        return file_ext::tiff;
-    default:
-        break;
-    }
-    return file_ext::unknown;
 }
 
 /*
