@@ -16,7 +16,7 @@
 
 namespace utils {
 
-// JPEG loader class
+// JPEG loader
 class jpeg {
   public:
     // No default/copy/move constructors and assignments
@@ -98,12 +98,12 @@ class jpeg {
     }
 
     // Decompress to pixels
-    pixel_data get_pixels() const {
+    utils::Pixels get_pixels() const {
         return get_pixels(get_best_format());
     }
-    pixel_data get_pixels(utils::Pixel_Format fmt) const {
+    utils::Pixels get_pixels(utils::Pixel_Format fmt) const {
         // Create empty pixel buffer
-        pixel_data p{fmt, width_, height_};
+        utils::Pixels p{fmt, width_, height_};
         if (!p.is_valid()) {
             return p;
         }
@@ -152,7 +152,7 @@ class jpeg {
     }
 
     // Converts our pixel format to the correct JPEG pixel format enum
-    int pfmt_to_jfmt(utils::Pixel_Format fmt) const noexcept {
+    int pfmt_to_jfmt(const utils::Pixel_Format fmt) const noexcept {
         switch (fmt) {
         default:
         case utils::Pixel_Format::Unknown:
@@ -164,18 +164,20 @@ class jpeg {
         case utils::Pixel_Format::GRAY:
             return TJPF_GRAY;
         }
-        return TJPF_UNKNOWN;
+        return -1;
     }
 };
 
 
+
+// Generic image loader
 class image {
   public:
     // Default constructor, everything empty
     image() = default;
     // Construct with a given filename
     // Public member pixel class
-    utils::pixel_data pixels{};
+    utils::Pixels pixels{};
     // Simple getter functions
     int width() const noexcept { return pixels.width(); }
     int height() const noexcept { return pixels.height(); }

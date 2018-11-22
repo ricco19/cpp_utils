@@ -26,6 +26,11 @@ set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
 # Determine which compiler we are using
 include(get_compiler_info)
 
+# Gets rid of sh.exe error
+if(CMCC_IS_MINGW-GCC)
+  set(CMAKE_SH "CMAKE_SH-NOTFOUND")
+endif()
+
 # Sets default build to RelWithDebInfo on single generators
 if(NOT GENERATOR_IS_MULTI_CONFIG
    AND NOT CMAKE_BUILD_TYPE

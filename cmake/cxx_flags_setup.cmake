@@ -171,3 +171,55 @@ if(CMCC_IS_CLANG)
   endif()
 
 endif()
+
+# MinGW GCC flags
+if(CMCC_IS_MINGW-GCC)
+  # Debug flags
+  target_compile_options(${PROJECT_NAME}
+                         PUBLIC $<$<CONFIG:Debug>:-g
+                                -D_FORTIFY_SOURCE=2
+                                -D_GLIBCXX_ASSERTIONS
+                                -fno-omit-frame-pointer>)
+  # Flags that we use no matter what the build type is
+  target_compile_options(${PROJECT_NAME}
+                         PUBLIC -march=native
+                                -O3
+                                -Werror
+                                -Wall
+                                -Wextra
+                                -Wcast-qual
+                                -Wfloat-equal
+                                -Wformat-security
+                                -Wpointer-arith
+                                -Wshadow
+                                -Wswitch-default
+                                -Wswitch-enum
+                                -Wundef
+                                -Wunreachable-code
+                                -Wwrite-strings
+                                -Wnon-virtual-dtor
+                                -Wold-style-cast
+                                -Wcast-align
+                                -Wunused
+                                -Woverloaded-virtual
+                                -Wpedantic
+                                -Wconversion
+                                -Wsign-conversion
+                                -Wmisleading-indentation
+                                -Wduplicated-cond
+                                -Wduplicated-branches
+                                -Wlogical-op
+                                -Wnull-dereference
+                                -Wuseless-cast
+                                -Wdouble-promotion
+                                -Wformat=2)
+  # Minimum size, overwrite O3
+  target_compile_options(${PROJECT_NAME} PUBLIC $<$<CONFIG:MinSizeRel>:-Os>)
+  # Minimum size with debug info
+  target_compile_options(${PROJECT_NAME}
+                         PUBLIC $<$<CONFIG:RelWithDebInfo>:-Os
+                                -g
+                                -D_FORTIFY_SOURCE=2
+                                -D_GLIBCXX_ASSERTIONS
+                                -fno-omit-frame-pointer>)
+endif()
