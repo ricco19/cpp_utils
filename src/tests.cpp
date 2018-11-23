@@ -4,33 +4,42 @@
 #include "utils/system.h"
 #include "utils/timer.h"
 #include <iostream>
-/*
+
 #include "benchmark/benchmark.h"
 
-static void BM_ext(benchmark::State &s, const char *fn) {
+static void BM_baseline(benchmark::State &s, const char *fn) {
+    auto jpeg = utils::jpeg(fn);
     for (auto _ : s) {
-        benchmark::DoNotOptimize(utils::get_file_ext(fn));
+        if (jpeg.is_jpeg()) {
+            auto p = jpeg.get_pixels();
+
+        }
+
         benchmark::ClobberMemory();
     }
 }
 
-static void BM_ext_noi(benchmark::State &s, const char *fn) {
+static void BM_to_rgb(benchmark::State &s, const char *fn) {
+    auto jpeg = utils::jpeg(fn);
     for (auto _ : s) {
-        benchmark::DoNotOptimize(utils::get_file_ext_noi(fn));
+        if (jpeg.is_jpeg()) {
+            auto p = jpeg.get_pixels();
+            p.convert_to(utils::Pixel_Format::RGB);
+
+        }
+
         benchmark::ClobberMemory();
     }
 }
 
-static void BM_ext_2(benchmark::State &s, const char *fn) {
+static void BM_to_rgba(benchmark::State &s, const char *fn) {
+    auto jpeg = utils::jpeg(fn);
     for (auto _ : s) {
-        benchmark::DoNotOptimize(utils::get_file_ext_2(fn));
-        benchmark::ClobberMemory();
-    }
-}
+        if (jpeg.is_jpeg()) {
+            auto p = jpeg.get_pixels();
+            p.convert_to(utils::Pixel_Format::RGBA);
 
-static void BM_ext_3(benchmark::State &s, const char *fn) {
-    for (auto _ : s) {
-        benchmark::DoNotOptimize(utils::get_file_ext_3(fn));
+        }
         benchmark::ClobberMemory();
     }
 }
@@ -40,15 +49,14 @@ int main(int argc, char **argv) {
         std::cout << "Nothing to do!\n";
         return 0;
     }
-    benchmark::RegisterBenchmark("GETEXT", &BM_ext, argv[1]);
-    benchmark::RegisterBenchmark("NO INLINE", &BM_ext_noi, argv[1]);
-    benchmark::RegisterBenchmark("V 2", &BM_ext_2, argv[1]);
-    benchmark::RegisterBenchmark("V 3", &BM_ext_3, argv[1]);
+    benchmark::RegisterBenchmark("BASELINE", &BM_baseline, argv[1]);
+    benchmark::RegisterBenchmark("TO RGB", &BM_to_rgb, argv[1]);
+    benchmark::RegisterBenchmark("TO RGBA", &BM_to_rgba, argv[1]);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
 }
-*/
 
+/*
 int main(int argc, char *argv[]) {
 
     if (argc <= 1) {
@@ -75,7 +83,7 @@ int main(int argc, char *argv[]) {
         if (p.is_valid()) {
             std::cout << "    Pixels: " << p.format()
                       << " (" << p.buf.size() << ")\n";
-            p.convert_to(utils::Pixel_Format::GRAY);
+            p.convert_to(utils::Pixel_Format::RGBA);
             std::cout << "    Pixels: " << p.format()
                       << " (" << p.buf.size() << ")\n";
         }
@@ -83,3 +91,4 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
+*/

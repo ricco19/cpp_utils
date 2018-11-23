@@ -104,11 +104,15 @@ class Pixels {
         , height_{h}
         , is_valid_{verify_buf()} {}
 
+    bytes_t buf{};
+
     // Simple getters
     Pixel_Format format() const noexcept { return format_; }
     int width() const noexcept { return width_; }
     int height() const noexcept { return height_; }
     bool is_valid() const noexcept { return is_valid_; }
+
+    void set_format(const Pixel_Format fmt) noexcept { format_ = fmt; };
 
     // Resets the class back to empty/clean state
     void clear() {
@@ -122,7 +126,7 @@ class Pixels {
     // Convert pixel formats
     void convert_to(const Pixel_Format fmt) {
         // No conversion necessary
-        if (fmt == format_) {
+        if ((fmt == format_) || buf.empty()) {
             return;
         }
         switch (fmt) {
@@ -141,14 +145,35 @@ class Pixels {
             }
             break;
         case Pixel_Format::RGB:
+            switch (format_) {
+            case Pixel_Format::GRAY:
+                format_ = gray_to_rgb();
+                break;
+            case Pixel_Format::RGBA:
+            case Pixel_Format::RGB:
+            case Pixel_Format::Unknown:
+            default:
+                break;
+            }
+            break;
         case Pixel_Format::RGBA:
+            switch (format_) {
+            case Pixel_Format::GRAY:
+                format_ = gray_to_rgba();
+                break;
+            case Pixel_Format::RGBA:
+            case Pixel_Format::RGB:
+            case Pixel_Format::Unknown:
+            default:
+                break;
+            }
+            break;
         case Pixel_Format::Unknown:
         default:
             break;
         }
         verify_buf();
     }
-    bytes_t buf{};
 
   private:
     Pixel_Format format_{Pixel_Format::Unknown};
@@ -170,7 +195,7 @@ class Pixels {
     }
 
     // Pixel conversion -> RGB to GRAYSCALE
-    Pixel_Format Pixels::rgb_to_gray() {
+    Pixel_Format rgb_to_gray() {
         // Since this is encapsulated we are trusting the size of the buffer
         constexpr auto dst_fmt = Pixel_Format::GRAY;
         const auto dst_sz = pixels_size(width_, height_, dst_fmt);
@@ -188,7 +213,7 @@ class Pixels {
     }
 
     // Pixel conversion -> RGBA to GRAYSCALE
-    Pixel_Format Pixels::rgba_to_gray() {
+    Pixel_Format rgba_to_gray() {
         // Since this is encapsulated we are trusting the size of the buffer
         constexpr auto dst_fmt = Pixel_Format::GRAY;
         const auto dst_sz = pixels_size(width_, height_, dst_fmt);
@@ -203,6 +228,72 @@ class Pixels {
         }
         // Trim the rest of the vector
         buf.resize(dst_sz);
+        return dst_fmt;
+    }
+
+    // Pixel conversion -> GRAYSCALE to RGB
+    Pixel_Format gray_to_rgb() {
+        // Calculate the new size of the buffer and resize it
+        constexpr auto dst_fmt = Pixel_Format::RGB;
+        const auto dst_sz = pixels_size(width_, height_, dst_fmt);
+        buf.resize(dst_sz);
+
+        // Get an const iterator to the end of the current data
+        constexpr auto src_fmt = Pixel_Format::GRAY;
+        const auto src_sz = pixels_size(width_, height_, src_fmt);
+        auto src_end_it = std::cbegin(buf) + src_sz - 1;
+
+        // Fill in the new back of the buffer
+        constexpr auto comps = pxfmt_components(dst_fmt);
+        for (auto it = std::rbegin(buf); it != std::rend(buf); it += comps) {
+            std::fill(it, it + comps, *src_end_it);
+            --src_end_it;
+        }
+        return dst_fmt;
+    }
+
+    // Pixel conversion -> GRAYSCALE to RGBA
+    Pixel_Format gray_to_rgba() {
+        // Calculate the new size of the buffer and resize it
+        constexpr auto dst_fmt = Pixel_Format::RGBA;
+        const auto dst_sz = pixels_size(width_, height_, dst_fmt);
+        buf.resize(dst_sz);
+
+        // std::cout << "beg: ";
+        // for (uint64_t i = 0; i < 4; ++i) {
+        //     std::cout << static_cast<int>(buf[i]) << ',';
+        // }
+        // std::cout << '\n';
+        // std::cout << "end: ";
+        // for (uint64_t i = buf.size() - 4; i < buf.size(); ++i) {
+        //     std::cout << static_cast<int>(buf[i]) << ',';
+        // }
+        // std::cout << '\n';
+
+        // Get an const iterator to the end of the current data
+        constexpr auto src_fmt = Pixel_Format::GRAY;
+        const auto src_sz = pixels_size(width_, height_, src_fmt);
+        auto src_end_it = std::cbegin(buf) + src_sz - 1;
+
+        // Fill in the back
+        constexpr auto comps = pxfmt_components(dst_fmt);
+        for (auto it = std::rbegin(buf); it < std::rend(buf); it += comps) {
+            *it = 0xFF;
+            std::fill(it + 1, it + comps, *src_end_it);
+            --src_end_it;
+        }
+
+        // std::cout << "beg: ";
+        // for (uint64_t i = 0; i < 16; ++i) {
+        //     std::cout << static_cast<int>(buf[i]) << ',';
+        // }
+        // std::cout << '\n';
+        // std::cout << "end: ";
+        // for (uint64_t i = buf.size() - 16; i < buf.size(); ++i) {
+        //     std::cout << static_cast<int>(buf[i]) << ',';
+        // }
+        // std::cout << '\n';
+
         return dst_fmt;
     }
 };
