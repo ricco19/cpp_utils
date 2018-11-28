@@ -8,38 +8,37 @@
 #include "benchmark/benchmark.h"
 
 static void BM_baseline(benchmark::State &s, const char *fn) {
-    auto jpeg = utils::jpeg(fn);
+    const auto jpeg = utils::jpeg(fn);
+    const auto p = jpeg.get_pixels();
     for (auto _ : s) {
-        if (jpeg.is_jpeg()) {
-            auto p = jpeg.get_pixels();
-
-        }
-
+        benchmark::DoNotOptimize(utils::pc_rgb_to_gray_dry(p.buf));
         benchmark::ClobberMemory();
     }
 }
 
-static void BM_to_rgb(benchmark::State &s, const char *fn) {
-    auto jpeg = utils::jpeg(fn);
+static void BM_baseline2(benchmark::State &s, const char *fn) {
+    const auto jpeg = utils::jpeg(fn);
+    const auto p = jpeg.get_pixels();
     for (auto _ : s) {
-        if (jpeg.is_jpeg()) {
-            auto p = jpeg.get_pixels();
-            p.convert_to(utils::Pixel_Format::RGB);
-
-        }
-
+        benchmark::DoNotOptimize(utils::pc_rgb_to_gray_dry2(p.buf));
         benchmark::ClobberMemory();
     }
 }
 
-static void BM_to_rgba(benchmark::State &s, const char *fn) {
-    auto jpeg = utils::jpeg(fn);
+static void BM_to_gray(benchmark::State &s, const char *fn) {
+    const auto jpeg = utils::jpeg(fn);
+    const auto p = jpeg.get_pixels();
     for (auto _ : s) {
-        if (jpeg.is_jpeg()) {
-            auto p = jpeg.get_pixels();
-            p.convert_to(utils::Pixel_Format::RGBA);
+        benchmark::DoNotOptimize(utils::pc_rgb_to_gray(p.buf));
+        benchmark::ClobberMemory();
+    }
+}
 
-        }
+static void BM_to_gray2(benchmark::State &s, const char *fn) {
+    const auto jpeg = utils::jpeg(fn);
+    const auto p = jpeg.get_pixels();
+    for (auto _ : s) {
+        benchmark::DoNotOptimize(utils::pc_rgb_to_gray2(p.buf));
         benchmark::ClobberMemory();
     }
 }
@@ -49,9 +48,10 @@ int main(int argc, char **argv) {
         std::cout << "Nothing to do!\n";
         return 0;
     }
-    benchmark::RegisterBenchmark("BASELINE", &BM_baseline, argv[1]);
-    benchmark::RegisterBenchmark("TO RGB", &BM_to_rgb, argv[1]);
-    benchmark::RegisterBenchmark("TO RGBA", &BM_to_rgba, argv[1]);
+    benchmark::RegisterBenchmark("BASELINE I0", &BM_baseline, argv[1]);
+    benchmark::RegisterBenchmark("BASELINE IS", &BM_baseline2, argv[1]);
+    benchmark::RegisterBenchmark("DOUBLE CALC", &BM_to_gray, argv[1]);
+    benchmark::RegisterBenchmark("SIMPLE AVG", &BM_to_gray2, argv[1]);
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
 }
@@ -81,11 +81,12 @@ int main(int argc, char *argv[]) {
         std::cout << "    Color Space: " << jpeg.colorspace_sv() << '\n';
         auto p = jpeg.get_pixels();
         if (p.is_valid()) {
-            std::cout << "    Pixels: " << p.format()
-                      << " (" << p.buf.size() << ")\n";
-            p.convert_to(utils::Pixel_Format::RGBA);
-            std::cout << "    Pixels: " << p.format()
-                      << " (" << p.buf.size() << ")\n";
+            std::cout << "    Pixels: " << p.format() << " (" << p.buf.size()
+                      << ")\n";
+            auto pc = utils::pc_rgb_to_gray(p.buf);
+            std::cout << "    Pixels: "
+                      << "??"
+                      << " (" << pc.size() << ")\n";
         }
     }
 

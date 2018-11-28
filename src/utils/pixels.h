@@ -196,19 +196,47 @@ class Pixels {
 
     // Pixel conversion -> RGB to GRAYSCALE
     Pixel_Format rgb_to_gray() {
-        // Since this is encapsulated we are trusting the size of the buffer
+        // Get number of components of source pixels
+        constexpr auto src_fmt = Pixel_Format::RGB;
+        constexpr auto comps = pxfmt_components(src_fmt);
+
+        std::cout << "beg: ";
+        for (uint64_t i = 0; i < 12; ++i) {
+            std::cout << static_cast<int>(buf[i]) << ',';
+        }
+        std::cout << '\n';
+        std::cout << "end: ";
+        for (uint64_t i = buf.size() - 12; i < buf.size(); ++i) {
+            std::cout << static_cast<int>(buf[i]) << ',';
+        }
+        std::cout << '\n';
+
+        // Loop over all components and flatten to a single GRAY component
+        auto dst_it = std::begin(buf);
+        for (auto it = std::cbegin(buf); it < std::cend(buf); it += comps) {
+            const auto r = static_cast<double>(*it) * 0.2126;
+            const auto g = static_cast<double>(*(it + 1)) * 0.7152;
+            const auto b = static_cast<double>(*(it + 2)) * 0.0722;
+            *dst_it = static_cast<uint8_t>(r + g + b);
+            dst_it++;
+        }
+
+        // Calculate new size and trim
         constexpr auto dst_fmt = Pixel_Format::GRAY;
         const auto dst_sz = pixels_size(width_, height_, dst_fmt);
-        // RGB to Grayscale algorithm
-        for (unsigned i = 0; i < dst_sz; ++i) {
-            const auto offs = i * 3;
-            const auto r = static_cast<double>(buf[offs]) * 0.2126;
-            const auto g = static_cast<double>(buf[offs + 1]) * 0.7152;
-            const auto b = static_cast<double>(buf[offs + 2]) * 0.0722;
-            buf[i] = static_cast<uint8_t>(r + g + b);
-        }
-        // Trim the rest of the vector
         buf.resize(dst_sz);
+
+        std::cout << "beg: ";
+        for (uint64_t i = 0; i < 4; ++i) {
+            std::cout << static_cast<int>(buf[i]) << ',';
+        }
+        std::cout << '\n';
+        std::cout << "end: ";
+        for (uint64_t i = buf.size() - 4; i < buf.size(); ++i) {
+            std::cout << static_cast<int>(buf[i]) << ',';
+        }
+        std::cout << '\n';
+
         return dst_fmt;
     }
 
@@ -297,6 +325,158 @@ class Pixels {
         return dst_fmt;
     }
 };
+
+bytes_t pc_rgb_to_gray_dry(const bytes_t &srcbuf) {
+    // Get number of components of source pixels
+    constexpr auto src_fmt = Pixel_Format::RGB;
+    constexpr auto src_comps = pxfmt_components(src_fmt);
+
+    // We can safely cast to a signed integer here
+    const auto src_size = static_cast<int>(srcbuf.size());
+
+    // Make sure we have at least 1 pixel
+    if (src_size < src_comps) {
+        return bytes_t{};
+    }
+
+    // Get the size of the destination vector and reserve memory
+    constexpr auto dst_fmt = Pixel_Format::GRAY;
+    constexpr auto dst_comps = pxfmt_components(dst_fmt);
+    const auto dst_size = (src_size / src_comps) * dst_comps;
+    bytes_t dstbuf(static_cast<unsigned>(dst_size), 0);
+
+    return dstbuf;
+}
+
+bytes_t pc_rgb_to_gray_dry2(const bytes_t &srcbuf) {
+    // Get number of components of source pixels
+    constexpr auto src_fmt = Pixel_Format::RGB;
+    constexpr auto src_comps = pxfmt_components(src_fmt);
+
+    // We can safely cast to a signed integer here
+    const auto src_size = static_cast<int>(srcbuf.size());
+
+    // Make sure we have at least 1 pixel
+    if (src_size < src_comps) {
+        return bytes_t{};
+    }
+
+    // Get the size of the destination vector and reserve memory
+    constexpr auto dst_fmt = Pixel_Format::GRAY;
+    constexpr auto dst_comps = pxfmt_components(dst_fmt);
+    const auto dst_size = (src_size / src_comps) * dst_comps;
+    bytes_t dstbuf(static_cast<unsigned>(dst_size));
+
+    return dstbuf;
+}
+
+bytes_t pc_rgb_to_gray(const bytes_t &srcbuf) {
+    // Get number of components of source pixels
+    constexpr auto src_fmt = Pixel_Format::RGB;
+    constexpr auto src_comps = pxfmt_components(src_fmt);
+
+    // We can safely cast to a signed integer here
+    const auto src_size = static_cast<int>(srcbuf.size());
+
+    // Make sure we have at least 1 pixel
+    if (src_size < src_comps) {
+        return bytes_t{};
+    }
+
+    // Get the size of the destination vector and 0 initialize
+    constexpr auto dst_fmt = Pixel_Format::GRAY;
+    constexpr auto dst_comps = pxfmt_components(dst_fmt);
+    const auto dst_size = (src_size / src_comps) * dst_comps;
+    bytes_t dstbuf(static_cast<unsigned>(dst_size), 0);
+
+    // std::cout << "beg: ";
+    // for (uint64_t i = 0; i < 12; ++i) {
+    //     std::cout << static_cast<int>(srcbuf[i]) << ',';
+    // }
+    // std::cout << '\n';
+    // std::cout << "end: ";
+    // for (uint64_t i = srcbuf.size() - 12; i < srcbuf.size(); ++i) {
+    //     std::cout << static_cast<int>(srcbuf[i]) << ',';
+    // }
+    // std::cout << '\n';
+
+    // Loop over all components and flatten to a single GRAY component
+    auto dst_it = std::begin(dstbuf);
+    for (auto it = std::cbegin(srcbuf); it < std::cend(srcbuf);
+         it += src_comps) {
+        const auto r = static_cast<double>(*it) * 0.2126;
+        const auto g = static_cast<double>(*(it + 1)) * 0.7152;
+        const auto b = static_cast<double>(*(it + 2)) * 0.0722;
+        *dst_it = static_cast<uint8_t>(r + g + b);
+        dst_it++;
+    }
+
+    // std::cout << "beg: ";
+    // for (uint64_t i = 0; i < 4; ++i) {
+    //     std::cout << static_cast<int>(dstbuf[i]) << ',';
+    // }
+    // std::cout << '\n';
+    // std::cout << "end: ";
+    // for (uint64_t i = dstbuf.size() - 4; i < dstbuf.size(); ++i) {
+    //     std::cout << static_cast<int>(dstbuf[i]) << ',';
+    // }
+    // std::cout << '\n';
+
+    return dstbuf;
+}
+
+bytes_t pc_rgb_to_gray2(const bytes_t &srcbuf) {
+    // Get number of components of source pixels
+    constexpr auto src_fmt = Pixel_Format::RGB;
+    constexpr auto src_comps = pxfmt_components(src_fmt);
+
+    // We can safely cast to a signed integer here
+    const auto src_size = static_cast<int>(srcbuf.size());
+
+    // Make sure we have at least 1 pixel
+    if (src_size < src_comps) {
+        return bytes_t{};
+    }
+
+    // Get the size of the destination vector and 0 initialize
+    constexpr auto dst_fmt = Pixel_Format::GRAY;
+    constexpr auto dst_comps = pxfmt_components(dst_fmt);
+    const auto dst_size = (src_size / src_comps) * dst_comps;
+    bytes_t dstbuf(static_cast<unsigned>(dst_size), 0);
+
+    // std::cout << "beg: ";
+    // for (uint64_t i = 0; i < 12; ++i) {
+    //     std::cout << static_cast<int>(srcbuf[i]) << ',';
+    // }
+    // std::cout << '\n';
+    // std::cout << "end: ";
+    // for (uint64_t i = srcbuf.size() - 12; i < srcbuf.size(); ++i) {
+    //     std::cout << static_cast<int>(srcbuf[i]) << ',';
+    // }
+    // std::cout << '\n';
+
+    // Loop over all components and flatten to a single GRAY component
+    auto dst_it = std::begin(dstbuf);
+    for (auto it = std::cbegin(srcbuf); it < std::cend(srcbuf);
+         it += src_comps) {
+        const auto avg = std::accumulate(it, it + src_comps, 0) / src_comps;
+        *dst_it = static_cast<uint8_t>(avg);
+        dst_it++;
+    }
+
+    // std::cout << "beg: ";
+    // for (uint64_t i = 0; i < 4; ++i) {
+    //     std::cout << static_cast<int>(dstbuf[i]) << ',';
+    // }
+    // std::cout << '\n';
+    // std::cout << "end: ";
+    // for (uint64_t i = dstbuf.size() - 4; i < dstbuf.size(); ++i) {
+    //     std::cout << static_cast<int>(dstbuf[i]) << ',';
+    // }
+    // std::cout << '\n';
+
+    return dstbuf;
+}
 
 } // namespace utils
 
