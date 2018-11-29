@@ -1,10 +1,15 @@
-#include "utils/image.h"
-#include "utils/natcmp.h"
-#include "utils/quickrng.h"
-#include "utils/system.h"
-#include "utils/timer.h"
+// Include everything
+#include "utils/image.hpp"
+#include "utils/natcmp.hpp"
+#include "utils/pixels.hpp"
+#include "utils/quickrng.hpp"
+#include "utils/system.hpp"
+#include "utils/timer.hpp"
+#ifdef _WIN32
+#include "utils/utf8conv_win32.hpp"
+#endif
 #include <iostream>
-
+/*
 #include "benchmark/benchmark.h"
 
 static void BM_baseline(benchmark::State &s, const char *fn) {
@@ -55,8 +60,8 @@ int main(int argc, char **argv) {
     benchmark::Initialize(&argc, argv);
     benchmark::RunSpecifiedBenchmarks();
 }
+*/
 
-/*
 int main(int argc, char *argv[]) {
 
     if (argc <= 1) {
@@ -72,7 +77,7 @@ int main(int argc, char *argv[]) {
     std::cout << "  Info: " << finfo << '\n';
     std::cout << "  Extension: " << ext << '\n';
 
-    auto jpeg = utils::jpeg(argv[1]);
+    auto jpeg = utils::JPEG_Read(argv[1]);
     if (jpeg.is_jpeg()) {
         std::cout << "  JPEG Info:\n";
         std::cout << "    Width: " << jpeg.width() << '\n';
@@ -92,4 +97,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-*/

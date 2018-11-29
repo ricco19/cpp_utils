@@ -1,7 +1,7 @@
-#ifndef SYSTEM_H
-#define SYSTEM_H
+#ifndef SYSTEM_HPP
+#define SYSTEM_HPP
 
-#include "utils/natcmp.h"
+#include "utils/natcmp.hpp"
 #include <algorithm>
 #include <cctype>
 #include <fstream>

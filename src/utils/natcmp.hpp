@@ -24,11 +24,11 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef NATCMP_H
-#define NATCMP_H
+#ifndef NATCMP_HPP
+#define NATCMP_HPP
 
 #ifdef _WIN32
-#include "utils/utf8conv_win32.h"
+#include "utils/utf8conv_win32.hpp"
 #include <shlwapi.h>
 #else
 #include <cctype>
@@ -37,35 +37,35 @@
 
 namespace utils {
 #ifndef _WIN32
+
+namespace detail {
 inline int to_upper(const char ch) {
-    return std::toupper(static_cast<unsigned char>(ch));
+    return std::toupper(static_cast<int>(ch));
 }
 inline int is_digit(const char ch) {
-    return std::isdigit(static_cast<unsigned char>(ch));
+    return std::isdigit(static_cast<int>(ch));
 }
-inline int is_ws(const char ch) {
-    return std::isspace(static_cast<unsigned char>(ch));
-}
-inline int natcmp(const std::string &ls, const std::string &rs) {
+inline int is_ws(const char ch) { return std::isspace(static_cast<int>(ch)); }
+} // namespace detail
 
-    for (std::string::size_type li = 0, ri = 0;; ++li, ++ri) {
-
+inline int natcmp(std::string_view ls, std::string_view rs) {
+    for (size_t li = 0, ri = 0;; ++li, ++ri) {
         // Skip whitespace
-        while (is_ws(ls[li]) != 0) {
+        while (detail::is_ws(ls[li]) != 0) {
             ++li;
         }
-        while (is_ws(rs[ri]) != 0) {
+        while (detail::is_ws(rs[ri]) != 0) {
             ++ri;
         }
-
         // Check to see if either is a digit
-        if ((is_digit(ls[li]) != 0) && (is_digit(rs[ri]) != 0)) {
+        if ((detail::is_digit(ls[li]) != 0) &&
+            (detail::is_digit(rs[ri]) != 0)) {
             if (ls[li] == '0' || rs[ri] == '0') {
                 // Compare two left-aligned numbers: the first to have a
                 // different value wins.
                 for (;; li++, ri++) {
-                    const int l_isdig = is_digit(ls[li]);
-                    const int r_isdig = is_digit(rs[ri]);
+                    const int l_isdig = detail::is_digit(ls[li]);
+                    const int r_isdig = detail::is_digit(rs[ri]);
                     if ((l_isdig == 0) && (r_isdig == 0)) {
                         break;
                     }
@@ -89,8 +89,8 @@ inline int natcmp(const std::string &ls, const std::string &rs) {
                 // magnitude, so we remember it in BIAS.
                 int bias = 0;
                 for (;; li++, ri++) {
-                    const int l_isdig = is_digit(ls[li]);
-                    const int r_isdig = is_digit(rs[ri]);
+                    const int l_isdig = detail::is_digit(ls[li]);
+                    const int r_isdig = detail::is_digit(rs[ri]);
                     if ((l_isdig == 0) && (r_isdig == 0)) {
                         break;
                     }
@@ -117,30 +117,26 @@ inline int natcmp(const std::string &ls, const std::string &rs) {
                 }
             }
         }
-
         // At the end of both strings - they're the same
         if ((ls[li] == 0) && (rs[ri] == 0)) {
             return 0;
         }
-
         // Always fold case before comparing
-        const int lc = to_upper(ls[li]);
-        const int rc = to_upper(rs[ri]);
+        const int lc = detail::to_upper(ls[li]);
+        const int rc = detail::to_upper(rs[ri]);
         if (lc < rc) {
             return -1;
         }
         if (lc > rc) {
             return 1;
         }
-
-        // Same characters, iterate
     }
 }
 #else
-inline int natcmp(const std::string &ls, const std::string &rs) {
+inline int natcmp(std::string_view ls, std::string_view rs) {
     return StrCmpLogicalW(&widen(ls)[0], &widen(rs)[0]);
 }
-inline int natcmp(const std::wstring &ls, const std::wstring &rs) {
+inline int natcmp(std::wstring_view ls, std::wstring_view rs) {
     return StrCmpLogicalW(&ls[0], &rs[0]);
 }
 #endif

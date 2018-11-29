@@ -1,33 +1,27 @@
 /*
-  image.h -- Generic image reading
-  TODO: Simplfy classes and add load_xxx functions that return pixels
+  jpeg.h -> Simple C++ wrapper for turbojpeg
 */
-#ifndef IMAGE_H
-#define IMAGE_H
+#ifndef JPEG_HPP
+#define JPEG_HPP
 
-#include "utils/pixels.h"
-#include "utils/system.h"
-#include <cstdint>
-#include <iostream>
-#include <tiffio.h>
+#include "utils/pixels.hpp"
+#include "utils/system.hpp"
 #include <turbojpeg.h>
-#include <type_traits>
-#include <vector>
+#include <string_view>
 
 namespace utils {
-
-// JPEG loader
-class jpeg {
+// JPEG Reader class
+class JPEG_Read {
   public:
     // No default/copy/move constructors and assignments
-    jpeg() = delete;
-    jpeg(const jpeg &) = delete;
-    jpeg(jpeg &&) = delete;
-    jpeg &operator=(const jpeg &) = delete;
-    jpeg &operator=(jpeg &&) = delete;
+    JPEG_Read() = delete;
+    JPEG_Read(const JPEG_Read &) = delete;
+    JPEG_Read(JPEG_Read &&) = delete;
+    JPEG_Read &operator=(const JPEG_Read &) = delete;
+    JPEG_Read &operator=(JPEG_Read &&) = delete;
 
     // Our only constructor -> filename to open
-    explicit jpeg(const char *filename) {
+    explicit JPEG_Read(const char *filename) {
         // Read entire file into memory
         file_buf_ = utils::file_binread(filename);
         if (file_buf_.empty()) {
@@ -44,7 +38,7 @@ class jpeg {
     }
 
     // We need a custom default destructor to destroy our JPEG handles
-    ~jpeg() {
+    ~JPEG_Read() {
         if (hand_ != nullptr) {
             tjDestroy(hand_);
         }
@@ -166,87 +160,11 @@ class jpeg {
         }
         return -1;
     }
-};
+}; // JPEG_Read
 
-
-
-// Generic image loader
-class image {
-  public:
-    // Default constructor, everything empty
-    image() = default;
-    // Construct with a given filename
-    // Public member pixel class
-    utils::Pixels pixels{};
-    // Simple getter functions
-    int width() const noexcept { return pixels.width(); }
-    int height() const noexcept { return pixels.height(); }
-
-  private:
-};
+// JPEG Writer class
+class JPEG_Write {}; // JPEG_Write
 
 } // namespace utils
 
-/*
-class tiff {
-  public:
-    tiff() = default;
-    tiff(const char *filename) { is_tiff_ = load(filename); }
-    ~tiff() {
-        if (hand_ != nullptr) {
-            TIFFClose(hand_);
-        }
-    }
-    // Get rid of all other constructors
-    tiff(tiff &&) = delete;
-    tiff(tiff &) = delete;
-    tiff &operator=(const tiff &) = delete;
-    tiff &operator=(tiff &&) = delete;
-    // Member functions
-    bool load(const char *filename) {
-        if (hand_ != nullptr) {
-            TIFFClose(hand_);
-            width_ = 0;
-            height_ = 0;
-            bytes_pp_ = 0;
-            bits_pp_ = 0;
-        }
-        hand_ = TIFFOpen(filename, "r");
-        if (hand_ == nullptr) {
-            return false;
-        }
-        TIFFGetField(hand_, TIFFTAG_IMAGEWIDTH, &width_);         // NOLINT
-        TIFFGetField(hand_, TIFFTAG_IMAGELENGTH, &height_);       // NOLINT
-        TIFFGetField(hand_, TIFFTAG_SAMPLESPERPIXEL, &bytes_pp_); // NOLINT
-        TIFFGetField(hand_, TIFFTAG_BITSPERSAMPLE, &bits_pp_);    // NOLINT
-        return true;
-    }
-    bool is_tiff() const { return is_tiff_; }
-    uint32_t width() const { return width_; }
-    uint32_t height() const { return height_; }
-    std::vector<uint8_t> get_pixels() const {
-        if (hand_ == nullptr) {
-            return std::vector<uint8_t>();
-        }
-        const auto row_sz = static_cast<size_t>(TIFFRasterScanlineSize(hand_));
-        std::vector<uint8_t> pixels(row_sz * height_, 0);
-        for (unsigned row = 0; row < height_; ++row) {
-            const auto offs = row * row_sz;
-            if (TIFFReadScanline(hand_, &pixels[offs], row) == -1) {
-                std::cerr << "Error reading TIFF scanline!\n";
-                return std::vector<uint8_t>();
-            }
-        }
-        return pixels;
-    }
-
-  private:
-    TIFF *hand_{nullptr};
-    bool is_tiff_{false};
-    uint32_t width_{};
-    uint32_t height_{};
-    uint16_t bytes_pp_{};
-    uint16_t bits_pp_{};
-};
-*/
 #endif

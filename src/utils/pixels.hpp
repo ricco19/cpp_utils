@@ -1,10 +1,10 @@
 /*
   pixels.h -- Image constants and generic helper functions
 */
-#ifndef PIXELS_H
-#define PIXELS_H
+#ifndef PIXELS_HPP
+#define PIXELS_HPP
 
-#include "utils/system.h"
+#include "utils/system.hpp"
 #include <cstring>
 
 namespace utils {
@@ -30,9 +30,6 @@ constexpr std::ostream &operator<<(std::ostream &os, const Pixel_Format fmt) {
     return os;
 }
 
-//
-// Pixel calculations
-//
 // Maximum dimension for width and height of an image
 constexpr int PIXELS_MAX_DIM = 10000;
 // Get the number of bytes per pixel (components) for each format
